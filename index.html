@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>When Do We Pit? — A Pit Strategy Simulator</title>
+<style>
+:root{--ink:#101720;--mut:#5c6675;--line:#d5dbe4;--acc:#0f3d91;--acc2:#e8f0fc;
+--good:#0b6b3a;--goodbg:#f0fbf4;--bad:#8c1d1d;--badbg:#fdf1f1;--even:#7a4a00;--evenbg:#fff9ec}
+*{box-sizing:border-box}
+body{margin:0;background:#f6f8fb;color:var(--ink);
+font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:linear-gradient(135deg,#0f3d91,#123c6b);color:#fff;padding:26px 22px 22px}
+header .wrap{max-width:1120px;margin:0 auto}
+h1{margin:0 0 4px;font-size:30px;letter-spacing:-.01em}
+header p{margin:0;opacity:.9;font-size:15px}
+header .badge{display:inline-block;margin-top:10px;background:rgba(255,255,255,.16);
+border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:3px 12px;font-size:13px}
+main{max-width:1120px;margin:0 auto;padding:20px 22px 70px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+margin:0 0 18px;box-shadow:0 1px 2px rgba(16,23,32,.04)}
+.grid2{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+h2{font-size:19px;margin:0 0 12px}
+h3{font-size:15px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:18px 0 8px}
+.ctrl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin-bottom:14px}
+.ctrl label{font-size:14px;color:var(--mut)}
+.ctrl output{font-weight:700;font-variant-numeric:tabular-nums;text-align:right;font-size:14px}
+.ctrl input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--acc)}
+#presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+#presets button{font:inherit;font-size:13px;padding:6px 12px;border:1px solid var(--line);
+background:#fbfcfe;border-radius:8px;cursor:pointer}
+#presets button:hover{background:var(--acc2);border-color:var(--acc)}
+#chart svg{width:100%;height:auto;display:block}
+.grid{stroke:#eef1f6;stroke-width:1}
+.axis{stroke:#aab3c1;stroke-width:1.2}
+.curve{fill:none;stroke:var(--acc);stroke-width:3;stroke-linejoin:round}
+.baseline{stroke:#b3261e;stroke-width:2;stroke-dasharray:7 5}
+.baseline-label{fill:#b3261e;font-size:13px;font-weight:600}
+.dot{fill:#fff;stroke:var(--acc);stroke-width:3.5}
+.dot-label{fill:var(--acc);font-size:14px;font-weight:700}
+.drop{stroke:var(--acc);stroke-width:1.5;stroke-dasharray:3 4;opacity:.55}
+.ytick,.xtick{fill:var(--mut);font-size:12px}
+.ytick{text-anchor:end}
+.xtick{text-anchor:middle}
+.axlabel{fill:var(--mut);font-size:12.5px}
+.verdict{border-radius:10px;padding:14px 16px;font-size:17px;line-height:1.45;margin:0 0 14px}
+.verdict.good{background:var(--goodbg);border:1px solid #bfe3cd;color:var(--good)}
+.verdict.bad{background:var(--badbg);border:1px solid #eec6c6;color:var(--bad)}
+.verdict.even{background:var(--evenbg);border:1px solid #f0dfb8;color:var(--even)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:#fbfcfe;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi .k{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.kpi .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);font-weight:600}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:14px}
+.formula{background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:8px 0}
+.formula p{margin:6px 0}
+textarea{width:100%;min-height:150px;font-family:ui-monospace,Consolas,monospace;font-size:14px;
+border:1px solid var(--line);border-radius:8px;padding:10px}
+button.go{font:inherit;margin-top:10px;padding:9px 18px;background:var(--acc);color:#fff;border:0;
+border-radius:8px;cursor:pointer;font-weight:600}
+button.go:hover{background:#0c3273}
+.meta{color:var(--mut);font-size:14px}
+.warn{color:#8a4b00;font-weight:600}
+.bad{color:#8c1d1d;font-weight:600}
+footer{max-width:1120px;margin:0 auto;padding:0 22px 40px;color:var(--mut);font-size:14px}
+ul.tight{margin:6px 0 0 0;padding-left:20px}
+ul.tight li{margin:4px 0}
+.filerow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+#fit-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.filebtn{display:inline-block;padding:10px 14px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;font-weight:600;font-size:14px;cursor:pointer}
+.filebtn:hover{background:#f5f8ff;border-color:#8fa3c0}
+.filerow:focus-within .filebtn{outline:2px solid #4a76b8;outline-offset:2px}
+
+/* ---------- phones (360-430 px) ---------- */
+@media(max-width:640px){
+  header{padding:20px 16px}
+  h1{font-size:23px}
+  header p{font-size:14px}
+  main{padding:14px 12px 50px}
+  .card{padding:14px;border-radius:10px}
+  .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
+  .kpi .v{font-size:17px}
+  .verdict{font-size:15.5px;padding:12px 13px}
+  table{font-size:13px}
+  th,td{padding:6px 6px}
+  th{font-size:11px;letter-spacing:.02em}
+  #multi{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #multi table{min-width:0}          /* wrap stint lengths instead of scrolling off-screen */
+  #multi th,#multi td{padding:6px 4px}
+  /* the chart is drawn in a 760-unit viewBox, so its type has to grow on a phone */
+  svg.sm .ytick,svg.sm .xtick{font-size:22px}
+  svg.sm .dot-label{font-size:22px}
+  svg.sm .baseline-label{font-size:19px}
+  svg.sm .axlabel{font-size:19px}
+  textarea{min-height:130px;font-size:16px}   /* 16px stops iOS zoom-on-focus */
+  input[type=range]{height:30px}              /* bigger touch target */
+  button.go{width:100%}
+  footer{padding:0 14px 30px}
+}
+@media(max-width:400px){
+  h1{font-size:21px}
+  .kpi .v{font-size:16px}
+  .kpi .k{font-size:11px}
+  header .badge{font-size:11px}
+}
+
+/* ---------- print / PDF (the copy that gets handed in) ---------- */
+@media print{
+  @page{size:A4;margin:14mm 12mm}
+  body{background:#fff;color:#000}
+  header{background:none!important;color:#000;border-bottom:2px solid #000;
+    padding:0 0 8px;margin-bottom:14px}
+  header h1{color:#000}
+  header .badge{border:1px solid #666;background:none;color:#000}
+  main{max-width:none;padding:0}
+  .grid2{grid-template-columns:1fr}
+  .card{box-shadow:none;border:1px solid #b8b8b8;break-inside:auto;page-break-inside:auto;
+    margin:0 0 5mm;padding:8px 12px}
+  .kpis,.verdict,.formula,#multi{break-inside:avoid;page-break-inside:avoid}
+  h2{break-after:avoid;page-break-after:avoid;margin-top:4mm}
+  table{break-inside:avoid}
+  #presets,textarea,button.go,.noprint,.filerow,#fit-src{display:none!important}   /* screen-only affordances */
+  input[type=range]{display:none!important}
+  .kpi,.verdict,.formula{background:#fff!important}
+  .verdict{border:1px solid #666!important}
+  .curve,.baseline,.axis,.dot{stroke:#000}
+  a{text-decoration:none;color:#000}
+  footer{padding:0;color:#333}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>When Do We Pit?</h1>
+    <p>A pit strategy simulator — when a single pit stop actually pays for itself.</p>
+    <span class="badge">MATH 10 culminating project · exhibit v0.1 · 2 Nov 2026</span>
+  </div>
+</header>
+
+<main>
+  <div class="grid2">
+    <section class="card" aria-label="Controls">
+      <h2>Set the race</h2>
+      <div id="controls"></div>
+      <h3 class="noprint">Presets</h3>
+      <div id="presets"></div>
+      <p class="meta" style="margin-top:14px">Every number below is recomputed from these four
+      values. Nothing is a lookup table.</p>
+    </section>
+
+    <section class="card" aria-label="Result">
+      <div id="verdict" class="verdict">—</div>
+      <div id="chart"></div>
+      <div class="kpis" style="margin-top:14px">
+        <div class="kpi"><div class="k">best pit lap</div><div class="v" id="v-best">—</div></div>
+        <div class="kpi"><div class="k">race time then</div><div class="v" id="v-time">—</div></div>
+        <div class="kpi"><div class="k">never stopping</div><div class="v" id="v-flat">—</div></div>
+        <div class="kpi"><div class="k">saving</div><div class="v" id="v-gain">—</div></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Why the middle?</h2>
+    <p>Stopping splits the race into two stints. Tyre cost for a stint of <code>p</code> laps is
+    <code>S(p) = p·t0 + k·p(p−1)/2</code>, so a one-stop race costs
+    <code>T(p) = S(p) + L + S(N−p)</code>.</p>
+    <div class="formula">
+      <p id="f-stint" class="mono"></p>
+      <p id="f-race" class="mono"></p>
+      <p id="f-gain" class="mono"></p>
+      <p class="mono">peak saving = k·N²/4 − L = <span id="f-peak">—</span></p>
+    </div>
+    <p>Expand <code>T(p)</code> and the <code>p</code> terms collapse to
+    <code>(k/2)·[p(p−1) + (N−p)(N−p−1)]</code>, whose slope is <code>2p − N</code>. So the best
+    pit lap is <b><code>p* = N/2</code> — it does not depend on <code>t0</code>, on <code>k</code>,
+    or on the pit loss <code>L</code></b>, because that loss is paid exactly once whichever lap you
+    choose. What <code>L</code> decides is whether stopping is worth it at all: against never
+    stopping the saving is <code>k·p·(N−p) − L</code>, which peaks at
+    <b><code>k·N²/4 − L</code></b> — the live figure is in the last line of the box above.</p>
+    <h3>What that means for more stops</h3>
+    <p>Same algebra, more terms: <code>m</code> stops cost
+    <code>N·t0 + m·L + (k/2)·Σ pᵢ(pᵢ−1)</code>, minimised by making the stints as equal as
+    possible. With the sliders as set:</p>
+    <div id="multi"></div>
+  </section>
+
+  <section class="card">
+    <h2>Fit your own stint</h2>
+    <p class="meta">Paste one stint of lap times, one per line (<code>84.53</code> or
+    <code>1:24.53</code>). In-laps, out-laps and traffic laps are dropped automatically before the
+    line is fitted, so one bad lap cannot drag the slope.</p>
+    <textarea id="fit-in" spellcheck="false" aria-label="Lap times for one stint, one per line"></textarea>
+    <div class="filerow">
+      <label class="filebtn" for="fit-file">Load a CSV instead</label>
+      <input type="file" id="fit-file" accept=".csv,.txt,text/csv,text/plain"
+             aria-label="Load a CSV of lap times, one per line">
+      <button class="go" id="fit-go" type="button">Fit t0 and k</button>
+    </div>
+    <p class="meta" id="fit-src"></p>
+    <div id="fit-out" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>Assumptions</h2>
+    <ul class="tight">
+      <li>Lap time on a set of tyres rises linearly with laps done: <code>t(n) = t0 + k·n</code>.</li>
+      <li>Every stop costs the same <code>L</code> seconds (in-lap + out-lap + stationary time together).</li>
+      <li>A stop resets the tyres to <code>t0</code>; fuel and driver effects are ignored.</li>
+      <li>The race is run at a constant pace — no traffic, no safety cars, no weather.</li>
+      <li><b>The default numbers are illustrative.</b> 53 laps, an 84.5 s fresh-tyre lap,
+      0.035 s/lap and a 23 s pit loss were chosen so the stop-or-not decision is genuinely close.
+      They are not a fit to published lap times — that is the next task in the plan.</li>
+      <li>Those are all simplifications. The result worth keeping is the shape: total time is a
+      parabola in the pit lap, so the best stop is the middle one, and whether to stop at all is a
+      single comparison, <code>k·p·(N−p)</code> against <code>L</code>.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <p>Exhibit v0.1 · built 2 Nov 2026 · model verified in <code>model.py</code> and
+  <code>test_core.js</code> (82 assertions, Python and JavaScript agreeing to 1e-9).</p>
+  <p>Venice Sumadchat · Shandler · Zach Dela Cruz — MATH 10, Sir Durwin.</p>
+</footer>
+
+<script>/* MATH 10 culminating project — "When Do We Pit?" — model core (browser + node).
+ *
+ * Same definitions as model.py, and test_core.js checks this file against the
+ * numbers model.py emitted, so the page the class sees and the Python spec can
+ * never drift apart.
+ *
+ *   lap n on a set of tyres:  t(n) = t0 + k*n
+ *   stint of p laps:          S(p) = p*t0 + k*p*(p-1)/2
+ *   race, one stop at lap p:  T(p) = S(p) + L + S(N-p)
+ *   no stop:                  S(N)
+ *   saving from stopping:     k*p*(N-p) - L        (peak at p = N/2)
+ *   m stops:                  N*t0 + m*L + (k/2)*sum p_i*(p_i-1), equal stints win
+ */
+(function (root) {
+  "use strict";
+
+  function lapTime(t0, k, n) { return t0 + k * n; }
+
+  function stintSum(t0, k, p) {
+    var s = 0;
+    for (var n = 0; n < p; n++) s += t0 + k * n;
+    return s;
+  }
+
+  function stintClosed(t0, k, p) { return p * t0 + (k * p * (p - 1)) / 2; }
+
+  function raceTimeForPitLap(N, t0, k, L, p) {
+    return stintSum(t0, k, p) + L + stintSum(t0, k, N - p);
+  }
+
+  function raceTimeClosed(N, t0, k, L, p) {
+    return N * t0 + L + (k / 2) * (p * (p - 1) + (N - p) * (N - p - 1));
+  }
+
+  function noStopTime(N, t0, k) { return stintSum(t0, k, N); }
+
+  function gainClosed(N, k, L, p) { return k * p * (N - p) - L; }
+
+  function gainFromStopping(N, t0, k, L, p) {
+    return noStopTime(N, t0, k) - raceTimeForPitLap(N, t0, k, L, p);
+  }
+
+  /* every legal pit lap, for the curve */
+  function curve(N, t0, k, L) {
+    var pts = [];
+    for (var p = 1; p < N; p++) pts.push({ p: p, t: raceTimeForPitLap(N, t0, k, L, p) });
+    return pts;
+  }
+
+  function bestPitLap(N, t0, k, L) {
+    var best = 1, bestT = raceTimeForPitLap(N, t0, k, L, 1);
+    for (var p = 2; p < N; p++) {
+      var t = raceTimeForPitLap(N, t0, k, L, p);
+      if (t < bestT) { bestT = t; best = p; }
+    }
+    return { p: best, t: bestT };
+  }
+
+  /* equal-stint plan for m stops, and its total time */
+  function equalPlan(N, stops) {
+    var parts = stops + 1, base = Math.floor(N / parts), rem = N - base * parts;
+    var plan = [];
+    for (var i = 0; i < parts; i++) plan.push(base + (i < rem ? 1 : 0));
+    return plan;
+  }
+
+  function raceTimePlan(N, t0, k, L, plan) {
+    var stops = plan.length - 1, acc = N * t0 + stops * L;
+    for (var i = 0; i < plan.length; i++) acc += (k / 2) * plan[i] * (plan[i] - 1);
+    return acc;
+  }
+
+  function raceTimeMultistop(N, t0, k, L, stops) {
+    var plan = equalPlan(N, stops);
+    return { plan: plan, t: raceTimePlan(N, t0, k, L, plan) };
+  }
+
+  /* least squares of lap time on lap index, with a MAD outlier pass */
+  function ols(pairs) {
+    var n = pairs.length, mx = 0, my = 0, i;
+    for (i = 0; i < n; i++) { mx += pairs[i][0]; my += pairs[i][1]; }
+    mx /= n; my /= n;
+    var sxx = 0, sxy = 0;
+    for (i = 0; i < n; i++) { sxx += Math.pow(pairs[i][0] - mx, 2); sxy += (pairs[i][0] - mx) * (pairs[i][1] - my); }
+    var k = sxy / sxx;
+    return { t0: my - k * mx, k: k };
+  }
+
+  function fitStint(laps, reject, sigma) {
+    reject = reject !== false; sigma = sigma || 3.0;
+    var base = ols(laps);
+    if (!reject || laps.length < 5) return { t0: base.t0, k: base.k, kept: laps.map(function (_, i) { return i; }) };
+    var resid = laps.map(function (d) { return Math.abs(d[1] - (base.t0 + base.k * d[0])); });
+    var s = resid.slice().sort(function (a, b) { return a - b; });
+    var med = s[Math.floor(s.length / 2)];
+    var dev = resid.map(function (r) { return Math.abs(r - med); }).sort(function (a, b) { return a - b; });
+    var mad = dev[Math.floor(dev.length / 2)] || 1e-9;
+    var keep = [], i;
+    for (i = 0; i < resid.length; i++) if (Math.abs(resid[i] - med) <= sigma * 1.4826 * mad) keep.push(i);
+    if (keep.length < 4 || keep.length === laps.length) return { t0: base.t0, k: base.k, kept: laps.map(function (_, j) { return j; }) };
+    var ref = ols(keep.map(function (j) { return laps[j]; }));
+    return { t0: ref.t0, k: ref.k, kept: keep };
+  }
+
+  /* "1:23.456" for a duration in seconds */
+  function clock(sec) {
+    var sign = sec < 0 ? "-" : "", s = Math.abs(sec);
+    var m = Math.floor(s / 60), r = s - m * 60;
+    return sign + m + ":" + (r < 10 ? "0" : "") + r.toFixed(3);
+  }
+
+  var API = {
+    lapTime: lapTime, stintSum: stintSum, stintClosed: stintClosed,
+    raceTimeForPitLap: raceTimeForPitLap, raceTimeClosed: raceTimeClosed,
+    noStopTime: noStopTime, gainClosed: gainClosed, gainFromStopping: gainFromStopping,
+    curve: curve, bestPitLap: bestPitLap, equalPlan: equalPlan,
+    raceTimePlan: raceTimePlan, raceTimeMultistop: raceTimeMultistop,
+    ols: ols, fitStint: fitStint, clock: clock
+  };
+
+  if (typeof module === "object" && module.exports) module.exports = API;
+  root.PitModel = API;
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
+<script>window.PIT_DEFAULTS = {"N": 53, "t0": 84.5, "k": 0.035, "L": 23.0};</script>
+<script>/* "When Do We Pit?" — exhibit v0.1 application layer.
+ * Renders the U-curve, the verdict, the multi-stop table and the stint fitter.
+ * All maths comes from PitModel (core.js); nothing is recomputed by hand here.
+ */
+(function () {
+  "use strict";
+  var M = window.PitModel;
+  var D = window.PIT_DEFAULTS || { N: 53, t0: 84.5, k: 0.035, L: 23.0 };
+
+  var state = { N: D.N, t0: D.t0, k: D.k, L: D.L };
+  var el = function (id) { return document.getElementById(id); };
+
+  /* ------------------------------------------------ controls */
+  var CONTROLS = [
+    { key: "N", label: "Race distance", unit: "laps", min: 20, max: 80, step: 1, fmt: function (v) { return v + " laps"; } },
+    { key: "t0", label: "Fresh-tyre lap time", unit: "s", min: 70, max: 110, step: 0.1, fmt: function (v) { return M.clock(v); } },
+    { key: "k", label: "Degradation per lap", unit: "s/lap", min: 0.005, max: 0.15, step: 0.005, fmt: function (v) { return (v * 1000).toFixed(0) + " ms/lap"; } },
+    { key: "L", label: "Pit loss", unit: "s", min: 10, max: 40, step: 0.5, fmt: function (v) { return v.toFixed(1) + " s"; } }
+  ];
+
+  function buildControls() {
+    var host = el("controls");
+    CONTROLS.forEach(function (c) {
+      var row = document.createElement("div");
+      row.className = "ctrl";
+      row.innerHTML =
+        '<label for="in-' + c.key + '">' + c.label + '</label>' +
+        '<output id="out-' + c.key + '"></output>' +
+        '<input id="in-' + c.key + '" type="range" min="' + c.min + '" max="' + c.max +
+        '" step="' + c.step + '" value="' + state[c.key] + '">';
+      host.appendChild(row);
+      var input = row.querySelector("input");
+      input.addEventListener("input", function () {
+        state[c.key] = parseFloat(input.value);
+        render();
+      });
+    });
+  }
+
+  function syncControls() {
+    CONTROLS.forEach(function (c) {
+      var input = el("in-" + c.key), out = el("out-" + c.key);
+      if (!input) return;
+      input.value = state[c.key];
+      out.textContent = c.fmt(state[c.key]);
+    });
+  }
+
+  /* ------------------------------------------------ the curve */
+  var W = 760, H = 380, PAD = { t: 22, r: 18, b: 52, l: 74 };
+
+  function drawCurve() {
+    var pts = M.curve(state.N, state.t0, state.k, state.L);
+    var best = M.bestPitLap(state.N, state.t0, state.k, state.L);
+    var flat = M.noStopTime(state.N, state.t0, state.k);
+
+    var times = pts.map(function (p) { return p.t; });
+    var lo = Math.min.apply(null, times), hi = Math.max.apply(null, times);
+    var span = Math.max(hi - lo, 1);
+    var yLo = lo - span * 0.18, yHi = hi + span * 0.14;
+    // include the no-stop baseline so the reader can see both lines
+    yLo = Math.min(yLo, flat - span * 0.10);
+    yHi = Math.max(yHi, flat + span * 0.10);
+
+    var x = function (p) { return PAD.l + (p - 1) / Math.max(1, state.N - 2) * (W - PAD.l - PAD.r); };
+    var y = function (t) { return PAD.t + (yHi - t) / (yHi - yLo) * (H - PAD.t - PAD.b); };
+
+    var d = pts.map(function (p, i) { return (i ? "L" : "M") + x(p.p).toFixed(1) + " " + y(p.t).toFixed(1); }).join(" ");
+    // a 760-unit drawing squeezed into a 336 px phone column would print 5 px labels,
+    // so on small screens the SVG gets fewer ticks, shorter clock strings and bigger type
+    var host = (el("chart") && el("chart").clientWidth) || W;
+    var small = host < 560;
+    var ySteps = small ? 2 : 4;
+    var grid = "", i;
+    for (i = 0; i <= ySteps; i++) {
+      var tv = yLo + (yHi - yLo) * i / ySteps, gy = y(tv);
+      grid += '<line x1="' + PAD.l + '" y1="' + gy.toFixed(1) + '" x2="' + (W - PAD.r) + '" y2="' + gy.toFixed(1) + '" class="grid"/>';
+      grid += '<text x="' + (PAD.l - 8) + '" y="' + (gy + 4).toFixed(1) + '" class="ytick">' +
+        (small ? M.clock(tv).replace(/\.\d+$/, "") : M.clock(tv)) + '</text>';
+    }
+    var xt = "";
+    var xTicks = small
+      ? [1, Math.round(state.N * 0.5), state.N - 1]
+      : [1, Math.round(state.N * 0.25), Math.round(state.N * 0.5), Math.round(state.N * 0.75), state.N - 1];
+    xTicks.forEach(function (p) {
+      xt += '<text x="' + x(p).toFixed(1) + '" y="' + (H - PAD.b + 20) + '" class="xtick">' + p + '</text>';
+    });
+
+    // the best-lap label must not sit on the never-stop baseline when the win is small
+    var markY = y(best.t), baseY = y(flat);
+    var lx = x(best.p), ly = markY - 14, lAnchor = 'middle';
+    if (Math.abs(markY - baseY) < 18) {
+      if (lx + 60 > W - PAD.r) { lx = lx - 10; lAnchor = 'end'; } else { lx = lx + 10; lAnchor = 'start'; }
+      ly = markY + 4;
+    }
+    var svg =
+      '<svg class="chart-svg' + (small ? " sm" : "") + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Total race time against pit lap">' +
+      grid +
+      '<line x1="' + PAD.l + '" y1="' + (H - PAD.b) + '" x2="' + (W - PAD.r) + '" y2="' + (H - PAD.b) + '" class="axis"/>' +
+      '<line x1="' + PAD.l + '" y1="' + PAD.t + '" x2="' + PAD.l + '" y2="' + (H - PAD.b) + '" class="axis"/>' +
+      // baseline: never stopping
+      '<line x1="' + PAD.l + '" y1="' + y(flat).toFixed(1) + '" x2="' + (W - PAD.r) + '" y2="' + y(flat).toFixed(1) + '" class="baseline"/>' +
+      '<text x="' + (W - PAD.r) + '" y="' + (y(flat) - 7).toFixed(1) + '" class="baseline-label" text-anchor="end">never stop: ' + M.clock(flat) + '</text>' +
+      '<path d="' + d + '" class="curve"/>' +
+      '<line x1="' + x(best.p).toFixed(1) + '" y1="' + y(best.t).toFixed(1) + '" x2="' + x(best.p).toFixed(1) + '" y2="' + (H - PAD.b) + '" class="drop"/>' +
+      '<circle cx="' + x(best.p).toFixed(1) + '" cy="' + y(best.t).toFixed(1) + '" r="6" class="dot"/>' +
+      '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" class="dot-label" text-anchor="' + lAnchor + '">lap ' + best.p + '</text>' +
+      xt +
+      '<text x="' + ((W + PAD.l) / 2) + '" y="' + (H - 8) + '" class="axlabel" text-anchor="middle">pit lap</text>' +
+      '<text transform="translate(16,' + (H / 2) + ') rotate(-90)" class="axlabel" text-anchor="middle">total race time</text>' +
+      '</svg>';
+    el("chart").innerHTML = svg;
+    return { best: best, flat: flat, pts: pts };
+  }
+
+  /* ------------------------------------------------ verdict + tables */
+  function renderVerdict(r) {
+    var gain = r.flat - r.best.t;
+    var pct = (gain / r.flat) * 100;
+    var verdict, cls;
+    if (gain > 0.05) {
+      verdict = "Stop on lap " + r.best.p + " — that saves <b>" + gain.toFixed(2) + " s</b> (" +
+        pct.toFixed(3) + "% of the race) against never stopping.";
+      cls = "good";
+    } else if (gain > -0.05) {
+      verdict = "It is a coin flip: stopping on lap " + r.best.p + " is within " +
+        Math.abs(gain).toFixed(2) + " s of not stopping at all. Tyre saving barely pays the pit loss.";
+      cls = "even";
+    } else {
+      verdict = "Do not stop. The best stop (lap " + r.best.p + ") still loses <b>" +
+        Math.abs(gain).toFixed(2) + " s</b> to staying out — the pit loss is bigger than the tyre saving.";
+      cls = "bad";
+    }
+    el("verdict").className = "verdict " + cls;
+    el("verdict").innerHTML = verdict;
+    el("v-best").textContent = "lap " + r.best.p;
+    el("v-time").textContent = M.clock(r.best.t);
+    el("v-flat").textContent = M.clock(r.flat);
+    el("v-gain").textContent = (gain >= 0 ? "+" : "") + gain.toFixed(2) + " s";
+    el("f-peak").textContent = (state.k * state.N * state.N / 4 - state.L).toFixed(2) + " s";
+  }
+
+  function renderMulti() {
+    var rows = "", stops, r;
+    for (stops = 0; stops <= 4; stops++) {
+      if (stops === 0) {
+        r = { plan: [state.N], t: M.noStopTime(state.N, state.t0, state.k) };
+      } else {
+        r = M.raceTimeMultistop(state.N, state.t0, state.k, state.L, stops);
+      }
+      rows += "<tr><td>" + (stops === 0 ? "none" : stops) + "</td><td>" + r.plan.join(" + ") +
+        "</td><td>" + M.clock(r.t) + "</td></tr>";
+    }
+    el("multi").innerHTML = "<table><tr><th>stops</th><th>stint lengths</th><th>race time</th></tr>" + rows + "</table>";
+  }
+
+  function renderFormula() {
+    el("f-stint").textContent = "S(p) = p·t0 + k·p(p−1)/2 = " + M.stintClosed(state.t0, state.k, state.N).toFixed(2) + " s at p = " + state.N;
+    el("f-race").textContent = "T(p) = S(p) + L + S(N−p)";
+    el("f-gain").textContent = "saving(p) = k·p·(N−p) − L, biggest at p = N/2 = " + (state.N / 2).toFixed(1);
+  }
+
+  function render() {
+    syncControls();
+    var r = drawCurve();
+    renderVerdict(r);
+    renderMulti();
+    renderFormula();
+  }
+
+  /* ------------------------------------------------ stint fitter */
+  function parseLaps(text) {
+    var out = [];
+    text.split(/[\n,;]+/).forEach(function (tok) {
+      tok = tok.trim();
+      if (!tok) return;
+      var v;
+      if (tok.indexOf(":") >= 0) {
+        var parts = tok.split(":");
+        v = parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+      } else {
+        v = parseFloat(tok);
+      }
+      if (isFinite(v) && v > 20) out.push(v);
+    });
+    return out;
+  }
+
+  function runFit() {
+    var laps = parseLaps(el("fit-in").value);
+    var box = el("fit-out");
+    if (laps.length < 4) {
+      box.innerHTML = '<p class="bad">Give me at least 4 lap times, one per line.</p>';
+      return;
+    }
+    var pairs = laps.map(function (v, i) { return [i, v]; });
+    var fit = M.fitStint(pairs, true, 3);
+    var kept = fit.kept.map(function (i) { return pairs[i]; });
+    var n = kept.length;
+    var mx = kept.reduce(function (a, p) { return a + p[0]; }, 0) / n;
+    var my = kept.reduce(function (a, p) { return a + p[1]; }, 0) / n;
+    var ssTot = 0, ssRes = 0;
+    kept.forEach(function (p) {
+      ssTot += Math.pow(p[1] - my, 2);
+      ssRes += Math.pow(p[1] - (fit.t0 + fit.k * p[0]), 2);
+    });
+    var r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
+    var dropped = pairs.filter(function (p, i) { return fit.kept.indexOf(i) < 0; }).map(function (p) { return p[0] + 1; });
+    box.innerHTML =
+      '<p><b>t0</b> = ' + fit.t0.toFixed(3) + ' s &nbsp; <b>k</b> = ' + (fit.k * 1000).toFixed(2) + ' ms/lap</p>' +
+      '<p>R² = ' + r2.toFixed(4) + ' on ' + n + ' laps kept</p>' +
+      '<p>' + (dropped.length ? '<span class="warn">Dropped lap ' + dropped.join(", ") + '</span> as pit/traffic outliers.' : 'No laps dropped.') + '</p>' +
+      '<p class="meta">Projected 20-lap stint cost: ' + M.stintClosed(fit.t0, fit.k, 20).toFixed(2) + ' s. Use t0 and k in the sliders above.</p>';
+  }
+
+  /* ------------------------------------------------ presets */
+  var PRESETS = {
+    "Monza-ish (default)": { N: 53, t0: 84.5, k: 0.035, L: 23 },
+    "High degradation": { N: 57, t0: 92, k: 0.09, L: 23 },
+    "Cheap pit stop": { N: 44, t0: 78, k: 0.05, L: 14 },
+    "No-stop race": { N: 40, t0: 86, k: 0.01, L: 30 }
+  };
+
+  function buildPresets() {
+    var host = el("presets");
+    Object.keys(PRESETS).forEach(function (name) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = name;
+      b.addEventListener("click", function () {
+        var p = PRESETS[name];
+        state.N = p.N; state.t0 = p.t0; state.k = p.k; state.L = p.L;
+        render();
+      });
+      host.appendChild(b);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    buildControls();
+    buildPresets();
+    el("fit-go").addEventListener("click", runFit);
+    // the chart picks a tick density from its own width, so it has to redraw on resize
+    var resizeTimer;
+    if (window.addEventListener) {          // the DOM test harness has no window event API
+      window.addEventListener("resize", function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(drawCurve, 150);
+      });
+    }
+    // drop a CSV in and the page fits it: same code path, no edit, no rebuild
+    var fileEl = el("fit-file");
+    if (fileEl) {
+      fileEl.addEventListener("change", function () {
+        var f = fileEl.files && fileEl.files[0];
+        if (!f) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          el("fit-in").value = String(reader.result || "");
+          el("fit-src").textContent = "Loaded " + f.name + " (" + f.size + " bytes).";
+          runFit();
+        };
+        reader.onerror = function () { el("fit-src").textContent = "Could not read " + f.name + "."; };
+        reader.readAsText(f);
+      });
+    }
+    el("fit-in").value = "84.48\n84.55\n84.55\n84.62\n84.62\n84.69\n84.69\n84.77\n84.76\n84.83\n84.83\n84.91\n84.90\n106.97\n84.97\n85.05\n85.04\n85.11\n85.11\n85.19";
+    render();
+    runFit();
+  });
+})();
+</script>
+</body>
+</html>
