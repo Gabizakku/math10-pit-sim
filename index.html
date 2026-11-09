@@ -77,6 +77,25 @@ ul.tight li{margin:4px 0}
 .filebtn:hover{background:#f5f8ff;border-color:#8fa3c0}
 .filerow:focus-within .filebtn{outline:2px solid #4a76b8;outline-offset:2px}
 
+/* ---------- lap table, circuit strip, on-page self-check ---------- */
+#laps{max-height:330px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:12px}
+#laps table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+#laps th,#laps td{padding:6px 10px;text-align:right;border-bottom:1px solid #eceff5}
+#laps th:nth-child(1),#laps td:nth-child(1),#laps th:nth-child(2),#laps td:nth-child(2){text-align:left}
+#laps thead th{position:sticky;top:0;background:#f4f6fa;font-weight:600}
+#laps tr.pitrow{background:#fff4d6;font-weight:600}
+#circuit{margin-top:10px}
+#circuit svg{width:100%;height:auto;display:block}
+.track{fill:none;stroke:#1d4ed8;stroke-width:9;stroke-linejoin:round;stroke-linecap:round;opacity:.20}
+.startline{fill:#111}
+.tracklabel{font-size:11px;fill:#444}
+.tracklabel.strong{font-weight:700;fill:#111}
+.pitmark{fill:none;stroke:#b45309;stroke-width:3}
+.car{fill:#b91c1c}
+.check{font-weight:600;font-size:15px;margin:8px 0 0}
+.check.ok{color:#116329}
+.check.bad{color:#8c1d1d}
+
 /* ---------- phones (360-430 px) ---------- */
 @media(max-width:640px){
   header{padding:20px 16px}
@@ -193,6 +212,27 @@ ul.tight li{margin:4px 0}
   </section>
 
   <section class="card">
+    <h2>Pit now or wait</h2>
+    <p id="f-now" class="mono"></p>
+    <p class="meta" id="verdict-now"></p>
+    <div id="circuit"></div>
+  </section>
+
+  <section class="card">
+    <h2>Lap by lap</h2>
+    <p class="meta" id="laps-note"></p>
+    <div id="laps"></div>
+  </section>
+
+  <section class="card">
+    <h2>Checked on the page, not just in the write-up</h2>
+    <p class="meta">Every time this page loads it runs the proposal's own measurable. It picks 100
+    random combinations of lap count, wear and pit loss, works out the best pit lap by brute force,
+    then compares that with the closed form <code>p* = N/2</code>.</p>
+    <p id="selfcheck"></p>
+  </section>
+
+  <section class="card">
     <h2>Fit your own stint</h2>
     <p class="meta">Paste one stint of lap times, one per line (<code>84.53</code> or
     <code>1:24.53</code>). In-laps, out-laps and traffic laps are dropped automatically before the
@@ -226,7 +266,7 @@ ul.tight li{margin:4px 0}
 </main>
 
 <footer>
-  <p>Exhibit v0.1 · built 2 Nov 2026 · model verified in <code>model.py</code> and
+  <p>Exhibit v0.2 · built 10 Nov 2026 · model verified in <code>model.py</code> and
   <code>test_core.js</code> (82 assertions, Python and JavaScript agreeing to 1e-9).</p>
   <p>Venice Sumadchat · Shandler · Zach Dela Cruz — MATH 10, Sir Durwin.</p>
 </footer>
@@ -335,6 +375,55 @@ ul.tight li{margin:4px 0}
     return { t0: ref.t0, k: ref.k, kept: keep };
   }
 
+  /* ---- the submitted proposal's panel 1-3 wording: "current lap", "remaining time" ----
+   * elapsed(c) is the time already spent to reach the current lap c, driving the
+   * same compound from lap 0. Remaining time = total with a stop at p minus that.
+   * Subtracting a constant cannot move the minimum, so the answer to "which lap is
+   * best" is unchanged; only the axis and the actionable range change. */
+  function elapsedTo(t0, k, c) { return stintSum(t0, k, c); }
+
+  function remainingFor(N, t0, k, L, c, p) {
+    return raceTimeForPitLap(N, t0, k, L, p) - elapsedTo(t0, k, c);
+  }
+
+  /* best stop that is still ahead of you, plus the unconstrained optimum */
+  function bestFrom(N, t0, k, L, c) {
+    var from = Math.max(1, Math.min(c, N - 1));
+    var bestP = from, bestT = raceTimeForPitLap(N, t0, k, L, from), p, t;
+    for (p = from + 1; p <= N - 1; p++) {
+      t = raceTimeForPitLap(N, t0, k, L, p);
+      if (t < bestT) { bestT = t; bestP = p; }
+    }
+    return {
+      p: bestP, t: bestT,
+      remaining: bestT - elapsedTo(t0, k, c),
+      global: bestPitLap(N, t0, k, L),
+      noStopFrom: noStopTime(N, t0, k) - elapsedTo(t0, k, c)
+    };
+  }
+
+  /* the proposal's own measurable: "U-curve minimum matches a brute-force check on
+   * 100 random input sets". Brute force here is the scan in bestPitLap; the claim is
+   * that the scan lands on the closed-form optimum N/2 (within the odd-N rounding). */
+  function selfCheck(count, seed) {
+    count = count || 100;
+    var s = seed || 20261102, agree = 0, worstGap = 0, i;
+    function rnd() { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; }
+    for (i = 0; i < count; i++) {
+      var N = 20 + Math.round(rnd() * 60);
+      var t0 = 70 + rnd() * 40;
+      var k = 0.005 + rnd() * 0.145;
+      var L = 10 + rnd() * 30;
+      var b = bestPitLap(N, t0, k, L);
+      var gap = Math.abs(b.p - N / 2);
+      if (gap <= 0.5) agree++;
+      if (gap > worstGap) worstGap = gap;
+      var closed = raceTimeClosed(N, t0, k, L, b.p), scan = raceTimeForPitLap(N, t0, k, L, b.p);
+      if (Math.abs(closed - scan) > 1e-9) agree--;   // closed form must equal the sum
+    }
+    return { n: count, agree: agree, worstGap: worstGap };
+  }
+
   /* "1:23.456" for a duration in seconds */
   function clock(sec) {
     var sign = sec < 0 ? "-" : "", s = Math.abs(sec);
@@ -348,7 +437,8 @@ ul.tight li{margin:4px 0}
     noStopTime: noStopTime, gainClosed: gainClosed, gainFromStopping: gainFromStopping,
     curve: curve, bestPitLap: bestPitLap, equalPlan: equalPlan,
     raceTimePlan: raceTimePlan, raceTimeMultistop: raceTimeMultistop,
-    ols: ols, fitStint: fitStint, clock: clock
+    ols: ols, fitStint: fitStint, clock: clock,
+    elapsedTo: elapsedTo, remainingFor: remainingFor, bestFrom: bestFrom, selfCheck: selfCheck
   };
 
   if (typeof module === "object" && module.exports) module.exports = API;
@@ -365,7 +455,7 @@ ul.tight li{margin:4px 0}
   var M = window.PitModel;
   var D = window.PIT_DEFAULTS || { N: 53, t0: 84.5, k: 0.035, L: 23.0 };
 
-  var state = { N: D.N, t0: D.t0, k: D.k, L: D.L };
+  var state = { N: D.N, t0: D.t0, k: D.k, L: D.L, c: 1 };
   var el = function (id) { return document.getElementById(id); };
 
   /* ------------------------------------------------ controls */
@@ -373,7 +463,9 @@ ul.tight li{margin:4px 0}
     { key: "N", label: "Race distance", unit: "laps", min: 20, max: 80, step: 1, fmt: function (v) { return v + " laps"; } },
     { key: "t0", label: "Fresh-tyre lap time", unit: "s", min: 70, max: 110, step: 0.1, fmt: function (v) { return M.clock(v); } },
     { key: "k", label: "Degradation per lap", unit: "s/lap", min: 0.005, max: 0.15, step: 0.005, fmt: function (v) { return (v * 1000).toFixed(0) + " ms/lap"; } },
-    { key: "L", label: "Pit loss", unit: "s", min: 10, max: 40, step: 0.5, fmt: function (v) { return v.toFixed(1) + " s"; } }
+    { key: "L", label: "Pit loss", unit: "s", min: 10, max: 40, step: 0.5, fmt: function (v) { return v.toFixed(1) + " s"; } },
+    // panel 1 of the submitted proposal names five sliders, current lap included
+    { key: "c", label: "Current lap", unit: "lap", min: 1, max: 79, step: 1, fmt: function (v) { return "lap " + v; } }
   ];
 
   function buildControls() {
@@ -408,24 +500,29 @@ ul.tight li{margin:4px 0}
   var W = 760, H = 380, PAD = { t: 22, r: 18, b: 52, l: 74 };
 
   function drawCurve() {
-    var pts = M.curve(state.N, state.t0, state.k, state.L);
-    var best = M.bestPitLap(state.N, state.t0, state.k, state.L);
-    var flat = M.noStopTime(state.N, state.t0, state.k);
+    var c = Math.max(1, Math.min(state.c, state.N - 1));   // the current-lap slider, clamped to the race
+    var best = M.bestFrom(state.N, state.t0, state.k, state.L, c);
+    var flat = best.noStopFrom;                            // never stopping, measured from where we are
+    var elapsed = M.elapsedTo(state.t0, state.k, c);
 
-    var times = pts.map(function (p) { return p.t; });
+    // the proposal asks for remaining race time, so the y axis is total-with-a-stop minus
+    // the time already spent. The constant shifts the axis, it cannot move the minimum.
+    var pts = [], p;
+    for (p = 1; p <= state.N - 1; p++) {
+      pts.push({ p: p, t: M.raceTimeForPitLap(state.N, state.t0, state.k, state.L, p) - elapsed });
+    }
+    var live = pts.filter(function (q) { return q.p >= c; });
+
+    var times = pts.map(function (q) { return q.t; });
     var lo = Math.min.apply(null, times), hi = Math.max.apply(null, times);
     var span = Math.max(hi - lo, 1);
     var yLo = lo - span * 0.18, yHi = hi + span * 0.14;
-    // include the no-stop baseline so the reader can see both lines
     yLo = Math.min(yLo, flat - span * 0.10);
     yHi = Math.max(yHi, flat + span * 0.10);
 
-    var x = function (p) { return PAD.l + (p - 1) / Math.max(1, state.N - 2) * (W - PAD.l - PAD.r); };
+    var x = function (q) { return PAD.l + (q - 1) / Math.max(1, state.N - 2) * (W - PAD.l - PAD.r); };
     var y = function (t) { return PAD.t + (yHi - t) / (yHi - yLo) * (H - PAD.t - PAD.b); };
 
-    var d = pts.map(function (p, i) { return (i ? "L" : "M") + x(p.p).toFixed(1) + " " + y(p.t).toFixed(1); }).join(" ");
-    // a 760-unit drawing squeezed into a 336 px phone column would print 5 px labels,
-    // so on small screens the SVG gets fewer ticks, shorter clock strings and bigger type
     var host = (el("chart") && el("chart").clientWidth) || W;
     var small = host < 560;
     var ySteps = small ? 2 : 4;
@@ -440,40 +537,113 @@ ul.tight li{margin:4px 0}
     var xTicks = small
       ? [1, Math.round(state.N * 0.5), state.N - 1]
       : [1, Math.round(state.N * 0.25), Math.round(state.N * 0.5), Math.round(state.N * 0.75), state.N - 1];
-    xTicks.forEach(function (p) {
-      xt += '<text x="' + x(p).toFixed(1) + '" y="' + (H - PAD.b + 20) + '" class="xtick">' + p + '</text>';
+    xTicks.forEach(function (q) {
+      xt += '<text x="' + x(q).toFixed(1) + '" y="' + (H - PAD.b + 20) + '" class="xtick">' + q + '</text>';
     });
 
-    // the best-lap label must not sit on the never-stop baseline when the win is small
-    var markY = y(best.t), baseY = y(flat);
-    var lx = x(best.p), ly = markY - 14, lAnchor = 'middle';
+    var path = function (arr, cls) {
+      var d = arr.map(function (q, k) { return (k ? "L" : "M") + x(q.p).toFixed(1) + " " + y(q.t).toFixed(1); }).join(" ");
+      return d ? '<path d="' + d + '" class="' + cls + '"/>' : "";
+    };
+
+    // past laps stay visible but dashed: they are choices you no longer have
+    var pastPath = path(pts.filter(function (q) { return q.p <= c; }), "curve past");
+
+    var markY = y(best.t - elapsed), baseY = y(flat);
+    var lx = x(best.p), ly = markY - 14, lAnchor = "middle";
     if (Math.abs(markY - baseY) < 18) {
-      if (lx + 60 > W - PAD.r) { lx = lx - 10; lAnchor = 'end'; } else { lx = lx + 10; lAnchor = 'start'; }
+      if (lx + 60 > W - PAD.r) { lx = lx - 10; lAnchor = "end"; } else { lx = lx + 10; lAnchor = "start"; }
       ly = markY + 4;
     }
+    var gap = best.global.p !== best.p
+      ? '<circle cx="' + x(best.global.p).toFixed(1) + '" cy="' + y(best.global.t - elapsed).toFixed(1) +
+        '" r="5" class="dot ghost"/><text x="' + x(best.global.p).toFixed(1) + '" y="' +
+        (y(best.global.t - elapsed) + 24).toFixed(1) + '" class="dot-label ghost-label" text-anchor="middle">optimum was lap ' +
+        best.global.p + '</text>'
+      : "";
+
     var svg =
-      '<svg class="chart-svg' + (small ? " sm" : "") + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Total race time against pit lap">' +
+      '<svg class="chart-svg' + (small ? " sm" : "") + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Remaining race time against the lap you pit on">' +
       grid +
       '<line x1="' + PAD.l + '" y1="' + (H - PAD.b) + '" x2="' + (W - PAD.r) + '" y2="' + (H - PAD.b) + '" class="axis"/>' +
       '<line x1="' + PAD.l + '" y1="' + PAD.t + '" x2="' + PAD.l + '" y2="' + (H - PAD.b) + '" class="axis"/>' +
-      // baseline: never stopping
       '<line x1="' + PAD.l + '" y1="' + y(flat).toFixed(1) + '" x2="' + (W - PAD.r) + '" y2="' + y(flat).toFixed(1) + '" class="baseline"/>' +
       '<text x="' + (W - PAD.r) + '" y="' + (y(flat) - 7).toFixed(1) + '" class="baseline-label" text-anchor="end">never stop: ' + M.clock(flat) + '</text>' +
-      '<path d="' + d + '" class="curve"/>' +
-      '<line x1="' + x(best.p).toFixed(1) + '" y1="' + y(best.t).toFixed(1) + '" x2="' + x(best.p).toFixed(1) + '" y2="' + (H - PAD.b) + '" class="drop"/>' +
-      '<circle cx="' + x(best.p).toFixed(1) + '" cy="' + y(best.t).toFixed(1) + '" r="6" class="dot"/>' +
+      pastPath +
+      path(live, "curve") +
+      '<line x1="' + x(best.p).toFixed(1) + '" y1="' + y(best.t - elapsed).toFixed(1) + '" x2="' + x(best.p).toFixed(1) + '" y2="' + (H - PAD.b) + '" class="drop"/>' +
+      '<circle cx="' + x(best.p).toFixed(1) + '" cy="' + y(best.t - elapsed).toFixed(1) + '" r="6" class="dot"/>' +
       '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" class="dot-label" text-anchor="' + lAnchor + '">lap ' + best.p + '</text>' +
+      gap +
+      // where the car is right now
+      '<line x1="' + x(c).toFixed(1) + '" y1="' + PAD.t + '" x2="' + x(c).toFixed(1) + '" y2="' + (H - PAD.b) + '" class="now"/>' +
+      '<text x="' + x(c).toFixed(1) + '" y="' + (PAD.t - 6) + '" class="now-label" text-anchor="middle">now: lap ' + c + '</text>' +
       xt +
       '<text x="' + ((W + PAD.l) / 2) + '" y="' + (H - 8) + '" class="axlabel" text-anchor="middle">pit lap</text>' +
-      '<text transform="translate(16,' + (H / 2) + ') rotate(-90)" class="axlabel" text-anchor="middle">total race time</text>' +
+      '<text transform="translate(16,' + (H / 2) + ') rotate(-90)" class="axlabel" text-anchor="middle">remaining race time</text>' +
       '</svg>';
     el("chart").innerHTML = svg;
-    return { best: best, flat: flat, pts: pts };
+    return { best: best, flat: flat, pts: pts, live: live, c: c, elapsed: elapsed };
+  }
+
+  /* ------------------------------------------------ lap-by-lap breakdown */
+  function renderLaps(r) {
+    var c = r.c, stop = r.best.p, N = state.N;
+    var rows = "", lap, age, t, cum = 0, stint = 1;
+    for (lap = c + 1; lap <= N; lap++) {
+      if (lap === stop + 1 && stop < N) { stint = 2; age = 0; } else { age = (stint === 1 ? lap - 1 : lap - stop - 1); }
+      t = state.t0 + state.k * age;
+      cum += t;
+      var cls = (stint === 2 && age === 0) ? ' class="pitrow"' : "";
+      rows += '<tr' + cls + '><td>' + lap + '</td><td>' + stint + '</td><td>' + age + '</td><td>' +
+        t.toFixed(3) + '</td><td>' + M.clock(cum) + '</td></tr>';
+    }
+    el("laps").innerHTML =
+      "<table><thead><tr><th>lap</th><th>stint</th><th>tyre age</th><th>lap time (s)</th><th>elapsed</th></tr></thead><tbody>" +
+      rows + "</tbody></table>";
+    el("laps-note").textContent = "From lap " + c + " with one stop on lap " + stop +
+      ". Tyre age resets at the stop, which is the whole reason the second stint is faster.";
+  }
+
+  /* ------------------------------------------------ circuit strip (schematic) */
+  var MONZA = "M60,150 C60,110 78,72 112,58 C150,42 196,52 226,74 C252,94 268,120 296,128 " +
+              "C322,136 344,120 356,96 C366,76 384,62 410,60 C452,56 486,84 500,120 " +
+              "C512,152 498,184 470,198 C442,212 404,206 380,190 C356,174 330,170 306,182 " +
+              "C278,196 244,204 210,196 C172,188 140,196 116,214 C92,232 62,232 44,212 " +
+              "C30,196 26,172 60,150 Z";
+
+  function drawCircuit(r) {
+    var host = el("circuit");
+    if (!host) return;
+    var c = r.c, N = state.N, best = r.best.p;
+    var frac = function (lap) { return (lap - 1) / Math.max(1, N - 1); };
+    var svg =
+      '<svg viewBox="0 0 560 300" role="img" aria-label="Schematic circuit with the car on the current lap">' +
+      '<path d="' + MONZA + '" class="track"/>' +
+      '<circle cx="60" cy="150" r="5" class="startline"/>' +
+      '<text x="60" y="136" class="tracklabel" text-anchor="middle">start</text>' +
+      '</svg>';
+    host.innerHTML = svg;
+    // place the car and the pit marker on the actual path, using the browser's own geometry
+    var path = host.querySelector("path");
+    if (!path || !path.getTotalLength) return;
+    var total = path.getTotalLength();
+    var pt = function (lap) { return path.getPointAtLength(total * frac(lap)); };
+    var car = pt(c), pitP = pt(best);
+    var extra = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    extra.innerHTML =
+      '<circle cx="' + pitP.x.toFixed(1) + '" cy="' + pitP.y.toFixed(1) + '" r="8" class="pitmark"/>' +
+      '<text x="' + pitP.x.toFixed(1) + '" y="' + (pitP.y - 14).toFixed(1) + '" class="tracklabel" text-anchor="middle">pit ' + best + '</text>' +
+      '<circle cx="' + car.x.toFixed(1) + '" cy="' + car.y.toFixed(1) + '" r="7" class="car"/>' +
+      '<text x="' + car.x.toFixed(1) + '" y="' + (car.y + 24).toFixed(1) + '" class="tracklabel strong" text-anchor="middle">lap ' + c + '</text>';
+    path.parentNode.appendChild(extra);
   }
 
   /* ------------------------------------------------ verdict + tables */
   function renderVerdict(r) {
-    var gain = r.flat - r.best.t;
+    // both sides must be measured from the current lap: flat is the remaining time on
+    // no-stop, best.t is the full race, so subtract the laps already run
+    var gain = r.flat - (r.best.t - r.elapsed);
     var pct = (gain / r.flat) * 100;
     var verdict, cls;
     if (gain > 0.05) {
@@ -492,10 +662,31 @@ ul.tight li{margin:4px 0}
     el("verdict").className = "verdict " + cls;
     el("verdict").innerHTML = verdict;
     el("v-best").textContent = "lap " + r.best.p;
-    el("v-time").textContent = M.clock(r.best.t);
+    el("v-time").textContent = M.clock(r.best.t - r.elapsed);
     el("v-flat").textContent = M.clock(r.flat);
     el("v-gain").textContent = (gain >= 0 ? "+" : "") + gain.toFixed(2) + " s";
     el("f-peak").textContent = (state.k * state.N * state.N / 4 - state.L).toFixed(2) + " s";
+
+    // panel 2 of the proposal: "pitting now versus pitting later", same formula twice
+    var best = r.best.p, N = state.N, t0 = state.t0, k = state.k, L = state.L;
+    var nowT = M.raceTimeForPitLap(N, t0, k, L, r.c), nowR = nowT - M.elapsedTo(t0, k, r.c);
+    var bestR = M.raceTimeForPitLap(N, t0, k, L, best) - M.elapsedTo(t0, k, r.c);
+    var diff = nowR - bestR;
+    var cmp = el("f-now");
+    if (cmp) {
+      cmp.innerHTML = diff > 0.05
+        ? "Pit <b>now</b> on lap " + r.c + ": <b>" + M.clock(nowR) + "</b> remaining. " +
+          "Pit on lap " + best + " instead: <b>" + M.clock(bestR) + "</b>. Waiting is worth <b>" +
+          diff.toFixed(2) + " s</b>."
+        : "Pit <b>now</b> on lap " + r.c + ": <b>" + M.clock(nowR) + "</b> remaining, which is the best " +
+          "move left from here.";
+    }
+    var note = el("verdict-now");
+    if (note) {
+      note.textContent = r.c > best
+        ? "You are past the optimum of lap " + best + ", so the cheapest remaining stop is now."
+        : "From lap " + r.c + ", " + (best - r.c) + " more laps are worth waiting for.";
+    }
   }
 
   function renderMulti() {
@@ -519,11 +710,26 @@ ul.tight li{margin:4px 0}
   }
 
   function render() {
+    var nIn = el("in-N"), cIn = el("in-c");
+    if (nIn && cIn) { cIn.max = Math.max(2, (+nIn.value || state.N) - 1); }
+    if (state.c > state.N - 1) state.c = state.N - 1;
     syncControls();
     var r = drawCurve();
     renderVerdict(r);
     renderMulti();
     renderFormula();
+    renderLaps(r);
+    drawCircuit(r);
+  }
+
+  /* the proposal's own measurable, run in the page: 100 random input sets,
+     brute-force minimum against the closed form. Shown, not just claimed. */
+  function renderSelfCheck() {
+    var host = el("selfcheck");
+    if (!host) return;
+    var s = M.selfCheck(100, 20261102);
+    host.textContent = s.agree + " / " + s.n + " random input sets: brute-force minimum = closed-form optimum";
+    host.className = s.agree === s.n ? "check ok" : "check bad";
   }
 
   /* ------------------------------------------------ stint fitter */
@@ -624,6 +830,7 @@ ul.tight li{margin:4px 0}
     }
     el("fit-in").value = "84.48\n84.55\n84.55\n84.62\n84.62\n84.69\n84.69\n84.77\n84.76\n84.83\n84.83\n84.91\n84.90\n106.97\n84.97\n85.05\n85.04\n85.11\n85.11\n85.19";
     render();
+    renderSelfCheck();
     runFit();
   });
 })();
