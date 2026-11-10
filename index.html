@@ -369,6 +369,8 @@ select {
       <div class="simrow">
         <button id="play" class="btn" type="button">▶ Play</button>
         <button id="reset" class="btn ghost" type="button">Reset</button>
+        <button id="finish" class="btn ghost" type="button" title="jump to the finish">Finish</button>
+        <button id="speed" class="btn ghost" type="button" title="playback speed">5×</button>
         <div class="pitfield">
           <label for="pitlap">Pit stop on lap</label>
           <input id="pitlap" type="number" min="1" step="1" inputmode="numeric" value="27">
@@ -759,6 +761,19 @@ select {
   var BOX_F = 0.46;                 // where along the lane the car's box sits
   var PIT_SPOT = { x: 0, y: 356, angle: 0 };
 
+  // Monza's start/finish line: end of the pit straight, before the Rettifilo chicane.
+  // Rotate the traced lap so index 0 sits there, everything else maps unchanged.
+  var START_ANCHOR = [496.94, 329.78];
+  (function rotateStart() {
+    var best = 0, bd = 1e9;
+    for (var i = 0; i < TRACK_POINTS.length; i++) {
+      var dx = TRACK_POINTS[i][0] - START_ANCHOR[0], dy = TRACK_POINTS[i][1] - START_ANCHOR[1];
+      var d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = i; }
+    }
+    TRACK_POINTS = TRACK_POINTS.slice(best).concat(TRACK_POINTS.slice(0, best));
+  })();
+
   function closedSpline(pts) {
     var n = pts.length, d = "M " + pts[0][0] + " " + pts[0][1];
     for (var i = 0; i < n; i++) {
@@ -1105,6 +1120,26 @@ select {
     paint();
   }
 
+  var SPEEDS = [5, 10, 20];
+
+  function finishNow() {
+    if (S.finished) return;
+    if (S.raf) { window.cancelAnimationFrame(S.raf); S.raf = 0; }
+    S.running = false;
+    S.raceTime = S.sched.total;
+    S.phase = "lap";
+    S.stopped = true;
+    finish();
+  }
+
+  function cycleSpeed() {
+    var i = SPEEDS.indexOf(S.speed);
+    S.speed = SPEEDS[(i + 1) % SPEEDS.length];
+    var b = $("speed");
+    if (b) b.textContent = S.speed + "×";
+    if (!S.running && !S.finished) resetSim(false);
+  }
+
   function resetSim(keepNote) {
     if (S.raf) { window.cancelAnimationFrame(S.raf); S.raf = 0; }
     S.running = false;
@@ -1191,6 +1226,8 @@ select {
     $("pitlap").addEventListener("blur", onPitLap);
     $("pitlap").addEventListener("keydown", function (e) { if (e.key === "Enter") onPitLap(); });
     $("play").addEventListener("click", runOrPause);
+    var fb = $("finish"); if (fb) fb.addEventListener("click", finishNow);
+    var sb = $("speed"); if (sb) sb.addEventListener("click", cycleSpeed);
     $("reset").addEventListener("click", function () { resetSim(); });
 
 
