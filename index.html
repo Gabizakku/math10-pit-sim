@@ -720,41 +720,28 @@ select {
    * the circuit
    * ------------------------------------------------------------------ */
 
-  /* The circuit is traced from the group's own layout sketch,
-   * layout-sketch-group-doc.png, by tools/trace_sketch_track.py. The sketch is
-   * the reference the project was approved against, so the page drives the
-   * drawn shape rather than a shape of its own. The car's arc length through
-   * these points is the lap. */
+  /* Monza, the Formula 1 circuit. The points are sampled from the official
+   * track map, File:Monza track map.svg on Wikimedia Commons, at 160 points a
+   * lap, then thinned to one every third. Index 0 sits 3.5 per cent of the lap
+   * before the Rettifilo, which is where the start and finish line is, and the
+   * lap runs in the F1 direction: Rettifilo, Curva Grande, Roggia, Lesmo 1 and
+   * 2, Serraglio, Ascari, Parabolica, main straight. The car's arc length
+   * through these points is the lap. */
   var TRACK_POINTS = [
-    [594, 116.5], [585.2, 134.7], [572, 150.1], [557.6, 164.4],
-    [543.1, 178.5], [528.6, 192.7], [514, 206.9], [499.5, 221],
-    [485, 235.2], [470.5, 249.4], [452.1, 255.2], [431.9, 256.9],
-    [411.7, 258.7], [391.5, 260.4], [373.3, 257.3], [360.2, 241.7],
-    [341.4, 236.2], [324.3, 245.6], [310.7, 260.7], [293.5, 270.9],
-    [274.5, 271], [256.7, 261.2], [239, 251.4], [220.8, 242.8],
-    [201.5, 247.1], [186, 259.8], [176.6, 277.4], [168.8, 296.1],
-    [161.8, 287.1], [168.8, 268], [179.9, 251.5], [195.4, 239],
-    [214.1, 232.7], [234.2, 236], [251.4, 245.6], [268.7, 255.9],
-    [287.5, 262.4], [305, 252.2], [317.2, 236.3], [334.3, 226.4],
-    [354, 226.7], [371.1, 236.1], [383.9, 250.4], [404.1, 248.2],
-    [424.3, 246], [444.4, 243.8], [463.5, 238.7], [478.8, 225.6],
-    [493.1, 211.1], [507.3, 196.6], [521.5, 182.2], [534, 167],
-    [548.8, 153.1], [563.5, 139.1], [576.5, 123.6], [566.6, 118.5],
-    [546.9, 123], [526.8, 126], [506.8, 129], [486.7, 131.9],
-    [467, 136.8], [447.4, 142], [427.6, 146.1], [407.4, 148.7],
-    [387.3, 151.3], [367.2, 153.9], [347.1, 156.4], [326.9, 159],
-    [306.7, 161], [286.5, 162.8], [266.3, 164.6], [246.1, 166.5],
-    [225.9, 167.8], [205.6, 167.8], [185.3, 167.8], [165, 167.8],
-    [144.7, 167.8], [124.5, 169], [104.3, 171], [84.1, 172.8],
-    [63.8, 172.1], [71.5, 188.6], [81.2, 206.4], [91, 224.2],
-    [89.6, 232.5], [74.8, 218.5], [61.2, 203.7], [50.7, 186.4],
-    [46.9, 167.6], [64, 160.1], [84.2, 158], [104.4, 155.9],
-    [124.6, 154.3], [144.9, 154.3], [165.1, 154.3], [185.4, 154.3],
-    [205.7, 154.3], [226, 154.3], [246.3, 154.3], [266.4, 152.2],
-    [286.5, 149], [306.5, 145.9], [326.6, 142.7], [346.7, 141.1],
-    [366.6, 138.6], [386.6, 135.7], [406.8, 133.7], [427, 131.6],
-    [447, 128.3], [466.8, 124], [486.6, 119.7], [506.5, 115.5],
-    [526.3, 111.2], [546.1, 106.9], [566, 102.7], [586.1, 103.9]
+    [507, 264.9], [533.6, 265], [560.2, 265.2], [586.5, 267.8],
+    [596, 290.9], [581.2, 312.2], [558.8, 323], [532.5, 326.9],
+    [506, 329.3], [479.4, 330.5], [452.8, 330.9], [426.1, 331.1],
+    [399.5, 331.7], [374.4, 332.3], [347.8, 332.8], [321.2, 333.2],
+    [294.5, 333.5], [267.9, 333.8], [249.1, 324.2], [223.9, 332.8],
+    [197.5, 335.7], [170.9, 335], [146.8, 328.8], [125.2, 313.3],
+    [110.5, 291.3], [102.4, 266], [96.9, 239.9], [92.3, 213.7],
+    [87.7, 187.5], [76.1, 168.7], [65.2, 144.6], [53.6, 120.6],
+    [44, 95.9], [57.5, 75.6], [83.7, 70.5], [109.8, 65.5],
+    [130.5, 77.3], [145.8, 99.1], [160.2, 119.6], [176.4, 140.8],
+    [194.6, 160.2], [214.1, 178.4], [233.8, 196.2], [253.3, 214.4],
+    [272.9, 232.4], [291.7, 249.1], [316.7, 251.1], [339.5, 263.5],
+    [366, 265.1], [392.6, 265], [419.2, 264.9], [445.9, 264.8],
+    [472.5, 264.8], [499.1, 264.9]
   ];
 
   /* The pit lane runs beside the main straight on the outside of the circuit.
@@ -794,7 +781,7 @@ select {
     cx /= TRACK_POINTS.length; cy /= TRACK_POINTS.length;
     var lanePts = [], LN = 26;
     for (k = 0; k <= LN; k++) {
-      var len = trackLen * (0.015 + 0.20 * k / LN);
+      var len = trackLen * (0.010 + 0.105 * k / LN);   // the main straight only
       var p = trackPath.getPointAtLength(len);
       var p2 = trackPath.getPointAtLength(Math.min(trackLen, len + 2));
       var tx = p2.x - p.x, ty = p2.y - p.y, tl = Math.sqrt(tx * tx + ty * ty) || 1;
@@ -827,9 +814,9 @@ select {
     $("startline-group").setAttribute("transform", "translate(" + TRACK_POINTS[0][0] + "," + TRACK_POINTS[0][1] + ")");
     $("pitbox-group").setAttribute("transform", "translate(" + PIT_SPOT.x + "," + PIT_SPOT.y + ")");
     $("pitbox-group").style.display = "none";   // the box is drawn above; this is the stop marker
-    $("track-lap").setAttribute("x", TRACK_POINTS[0][0] + 14);
-    $("track-lap").setAttribute("y", TRACK_POINTS[0][1] - 12);
-    $("track-lap").textContent = "CIRCUIT MAP · FROM THE GROUP SKETCH";
+    $("track-lap").setAttribute("x", 20);
+    $("track-lap").setAttribute("y", 388);
+    $("track-lap").textContent = "MONZA · AUTODROMO NAZIONALE · 5.793 km";
   }
 
   /* put the car on any path at an arc length, pointing along it */
