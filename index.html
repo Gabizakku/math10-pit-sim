@@ -986,8 +986,9 @@ select {
     } else if (S.finished) {
       var predicted = M.raceTimeForPitLap(s.N, s.t0, s.k, L, s.pitAfterLap);
       var diff = s.total - predicted;
+      var diffText = Math.abs(diff) < 0.0005 ? "0.000" : diff.toFixed(3);   // never print -0.000
       $("simnote").innerHTML = 'Finished. The timer reads <b>' + fmt(s.total) + '</b>; the graph predicted <b>' +
-        fmt(predicted) + '</b> for lap ' + s.pitAfterLap + '. Difference <span class="good">' + diff.toFixed(3) + ' s</span>.';
+        fmt(predicted) + '</b> for lap ' + s.pitAfterLap + '. Difference <span class="good">' + diffText + ' s</span>.';
     }
   }
 
