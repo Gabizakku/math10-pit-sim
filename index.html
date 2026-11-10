@@ -307,6 +307,8 @@ select {
 #formulas .f { display: flex; gap: 1.4em; overflow: hidden; }
 #formulas .k { color: var(--text); }
 #formulas .hintline { color: #6b7b93; }
+#formulas .src { color: #8fa8c9; text-decoration: none; border-bottom: 1px solid rgba(143, 168, 201, 0.45); }
+#formulas .src:hover { color: #cfe0f5; }
 
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
@@ -430,7 +432,7 @@ select {
       <span><span class="k">T(p)</span> = S(p) + 20 + S(N−p)</span>
       <span><span class="k">window</span>: T(p) ≤ T(p*) + 1</span>
     </div>
-    <span class="hintline">Linear tyre wear · one stop · lap times in seconds</span>
+    <span class="hintline">Linear tyre wear · one stop · lap times in seconds · <a class="src" href="https://github.com/Gabizakku/math10-pit-sim" target="_blank" rel="noopener">code</a></span>
   </footer>
 
 </div>
