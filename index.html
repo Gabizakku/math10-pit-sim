@@ -773,6 +773,11 @@ select {
     }
     TRACK_POINTS = TRACK_POINTS.slice(best).concat(TRACK_POINTS.slice(0, best));
 
+    // the trace came mirrored: in it the chicane sat right of the line and the Parabolica left,
+    // the opposite of the official map. mirror x so the drawing matches the circuit.
+    var MIRROR_X = 640;
+    TRACK_POINTS = TRACK_POINTS.map(function (p) { return [MIRROR_X - p[0], p[1]]; });
+    PIT_LANE = PIT_LANE.map(function (p) { return [MIRROR_X - p[0], p[1]]; });
   })();
 
   function closedSpline(pts) {
