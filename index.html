@@ -370,7 +370,7 @@ select {
         <button id="play" class="btn" type="button">▶ Play</button>
         <button id="reset" class="btn ghost" type="button">Reset</button>
         <button id="finish" class="btn ghost" type="button" title="jump to the finish">Finish</button>
-        <button id="speed" class="btn ghost" type="button" title="playback speed">5×</button>
+        <button id="speed" class="btn ghost" type="button" title="playback speed">20× demo</button>
         <div class="pitfield">
           <label for="pitlap">Pit stop on lap</label>
           <input id="pitlap" type="number" min="1" step="1" inputmode="numeric" value="27">
@@ -679,7 +679,7 @@ select {
 
   var S = {
     t0: DEFAULTS.t0, k: DEFAULTS.k, N: DEFAULTS.N, pit: 27,
-    speed: 5, running: false, finished: false,
+    speed: 20, running: false, finished: false,
     raceTime: 0, phase: "lap", stopped: false, pitClock: 0, raf: 0, last: 0,
     sched: null, win: null
   };
@@ -772,6 +772,7 @@ select {
       if (d < bd) { bd = d; best = i; }
     }
     TRACK_POINTS = TRACK_POINTS.slice(best).concat(TRACK_POINTS.slice(0, best));
+
   })();
 
   function closedSpline(pts) {
@@ -1120,7 +1121,7 @@ select {
     paint();
   }
 
-  var SPEEDS = [5, 10, 20];
+  var SPEEDS = [20, 5, 10];
 
   function finishNow() {
     if (S.finished) return;
@@ -1136,7 +1137,7 @@ select {
     var i = SPEEDS.indexOf(S.speed);
     S.speed = SPEEDS[(i + 1) % SPEEDS.length];
     var b = $("speed");
-    if (b) b.textContent = S.speed + "×";
+    if (b) b.textContent = S.speed + "×" + (S.speed === 20 ? " demo" : "");
     if (!S.running && !S.finished) resetSim(false);
   }
 
