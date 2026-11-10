@@ -130,9 +130,11 @@ main {
 .track-edge { fill: none; stroke: #2b3a55; stroke-width: 26; stroke-linejoin: round; }
 .track-line { fill: none; stroke: #e9eef8; stroke-opacity: 0.30; stroke-width: 0.9; stroke-dasharray: 5 7; }
 .track-label { fill: #7f8ea6; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
-.pitbox { fill: rgba(255, 59, 48, 0.12); stroke: rgba(255, 59, 48, 0.6); stroke-width: 1.2; }
-.pitbox-label { fill: #ff8f88; font-size: 9.5px; letter-spacing: 0.1em; }
-.pitlane { stroke: rgba(255, 59, 48, 0.45); stroke-width: 1.4; stroke-dasharray: 4 4; }
+.pitlane-road { fill: none; stroke: #33415c; stroke-width: 10; stroke-linejoin: round; }
+.pitbox { fill: rgba(255, 255, 255, 0.06); stroke: rgba(160, 180, 210, 0.45); stroke-width: 1; }
+.pitbox.on { fill: rgba(255, 59, 48, 0.22); stroke: rgba(255, 59, 48, 0.8); }
+.pitstop { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 3 2; }
+.corner text { fill: #6d7d96; font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; }
 .startline { stroke: #e9eef8; stroke-width: 2.4; stroke-dasharray: 2.4 2.4; }
 #car { will-change: transform; }
 .car-body { fill: var(--accent); }
@@ -341,11 +343,17 @@ select {
           <path id="track-path" class="track-bg" d=""></path>
           <path class="track-edge" d=""></path>
           <path class="track-line" d=""></path>
+          <path id="pitlane" class="pitlane-road" d=""></path>
+          <g id="pitboxes"></g>
           <g id="startline-group"><line class="startline" x1="0" y1="-14" x2="0" y2="14"></line></g>
-          <line id="pitlane" class="pitlane" x1="180" y1="318" x2="180" y2="330"></line>
+          <g class="corner"><text x="634" y="286" text-anchor="end">Rettifilo</text></g>
+          <g class="corner"><text x="634" y="196" text-anchor="end">Curva Grande</text></g>
+          <g class="corner"><text x="634" y="106" text-anchor="end">Lesmo</text></g>
+          <g class="corner"><text x="300" y="140" text-anchor="middle">Ascari</text></g>
+          <g class="corner"><text x="62" y="286">Parabolica</text></g>
+          <g class="corner"><text x="336" y="392">Main straight</text></g>
           <g id="pitbox-group">
-            <rect class="pitbox" x="-30" y="-11" width="60" height="22" rx="3"></rect>
-            <text class="pitbox-label" x="0" y="4" text-anchor="middle">PIT</text>
+            <rect class="pitstop" x="-12" y="-8" width="24" height="16" rx="3"></rect>
           </g>
           <text class="track-label" id="track-lap" x="0" y="0"></text>
           <g id="car">
@@ -718,16 +726,33 @@ select {
    * the circuit
    * ------------------------------------------------------------------ */
 
-  /* A stylised closed circuit. Waypoints only, smoothed into one cubic path so
-   * the car can be placed by arc length with getPointAtLength. */
+  /* Monza, Autodromo Nazionale, 5.793 km, 11 turns, clockwise. Waypoints in
+   * driving order, starting at the start/finish line on the main straight:
+   * Rettifilo chicane, Curva Grande, Roggia, Lesmo 1 and 2, Serraglio, Ascari,
+   * then the Parabolica onto the main straight. The car's arc length through
+   * these points is the lap. */
   var TRACK_POINTS = [
-    [180, 340], [420, 340], [520, 335], [552, 290], [540, 240], [500, 222],
-    [452, 236], [420, 214], [432, 172], [470, 150], [516, 138], [540, 100],
-    [520, 64], [470, 52], [410, 58], [360, 84], [330, 110], [296, 96],
-    [250, 70], [196, 66], [152, 92], [140, 132], [160, 168], [204, 182],
-    [246, 196], [262, 224], [246, 252], [204, 262], [156, 282], [132, 312],
-    [144, 336]
+    [520, 330], [534, 326],                            // start/finish, just before turn 1
+    [556, 312], [536, 298], [560, 284],                // Variante del Rettifilo
+    [578, 254], [584, 220], [570, 186], [544, 166],    // Curva Grande
+    [556, 146], [538, 132], [558, 118],                // Variante della Roggia
+    [572, 98], [556, 80], [524, 72],                   // Lesmo 1
+    [498, 86], [472, 96], [440, 104],                  // Lesmo 2
+    [400, 112], [352, 116],                            // Serraglio
+    [318, 110], [292, 120], [268, 106],                // Variante Ascari
+    [230, 88], [190, 86], [150, 92],                   // back straight
+    [116, 108], [94, 140], [86, 178], [94, 214],       // Curva Parabolica
+    [116, 244], [150, 262], [180, 272], [200, 300],    // exit onto the straight
+    [230, 330], [300, 330], [400, 330], [480, 330], [510, 330]
   ];
+
+  /* The pit lane runs beside the main straight on the outside of the circuit.
+   * Entry after the Parabolica, pit boxes along the straight, exit before the
+   * Rettifilo, which is how Monza's pit lane works. */
+  var PIT_ROAD = "M 248 331 C 274 334 284 356 314 356 L 470 356 C 494 356 506 342 516 331";
+  var PIT_BOXES = 9;
+  var BOX_F = 0.46;                 // where along the lane the car's box sits
+  var PIT_SPOT = { x: 0, y: 356, angle: 0 };
 
   function closedSpline(pts) {
     var n = pts.length, d = "M " + pts[0][0] + " " + pts[0][1];
@@ -742,7 +767,6 @@ select {
   }
 
   var trackPath = null, trackLen = 0;
-  var PIT_SPOT = { x: 180, y: 296, angle: 0 };
 
   function buildTrack() {
     var d = closedSpline(TRACK_POINTS);
@@ -751,12 +775,45 @@ select {
     trackPath = $("track-path");
     trackLen = trackPath.getTotalLength();
 
-    // start/finish line sits on the first waypoint, perpendicular to the straight
+    var lane = $("pitlane");
+    lane.setAttribute("d", PIT_ROAD);
+
+    // pit boxes: a row along the lane, the one the car uses is highlighted
+    var boxes = $("pitboxes");
+    var laneLen = lane.getTotalLength();
+    for (var b = 0; b < PIT_BOXES; b++) {
+      var fb = 0.18 + (b / (PIT_BOXES - 1)) * 0.50;
+      var pt = lane.getPointAtLength(laneLen * fb);
+      var rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      var mine = Math.abs(fb - BOX_F) < 0.03;
+      rect.setAttribute("x", (pt.x - 8).toFixed(1));
+      rect.setAttribute("y", (pt.y + 5).toFixed(1));
+      rect.setAttribute("width", "16");
+      rect.setAttribute("height", "11");
+      rect.setAttribute("rx", "1.5");
+      rect.setAttribute("class", mine ? "pitbox on" : "pitbox");
+      boxes.appendChild(rect);
+      if (mine) { PIT_SPOT.x = pt.x; PIT_SPOT.y = pt.y; }
+    }
+
     $("startline-group").setAttribute("transform", "translate(" + TRACK_POINTS[0][0] + "," + TRACK_POINTS[0][1] + ")");
     $("pitbox-group").setAttribute("transform", "translate(" + PIT_SPOT.x + "," + PIT_SPOT.y + ")");
+    $("pitbox-group").style.display = "none";   // the box is drawn above; this is the stop marker
     $("track-lap").setAttribute("x", TRACK_POINTS[0][0] + 14);
-    $("track-lap").setAttribute("y", TRACK_POINTS[0][1] + 34);
-    $("track-lap").textContent = "START / FINISH";
+    $("track-lap").setAttribute("y", TRACK_POINTS[0][1] - 12);
+    $("track-lap").textContent = "MONZA · 5.793 km · 11 TURNS";
+  }
+
+  /* put the car on any path at an arc length, pointing along it */
+  function placeOn(path, len) {
+    var car = $("car");
+    var total = path.getTotalLength();
+    if (len < 0) len = 0;
+    if (len > total) len = total;
+    var p = path.getPointAtLength(len);
+    var p2 = path.getPointAtLength(Math.min(total, len + 1.5));
+    var a = Math.atan2(p2.y - p.y, p2.x - p.x) * 180 / Math.PI;
+    car.setAttribute("transform", "translate(" + p.x.toFixed(1) + "," + p.y.toFixed(1) + ") rotate(" + a.toFixed(1) + ")");
   }
 
   /* where on the circuit to draw the car for a race time t */
@@ -766,7 +823,14 @@ select {
     var standing = t >= pitEnd && t < pitEnd + L;
 
     if (standing) {
-      car.setAttribute("transform", "translate(" + PIT_SPOT.x + "," + PIT_SPOT.y + ") rotate(" + PIT_SPOT.angle + ")");
+      // the pit is real geometry: in at the entry, stopped in the box, out at the exit
+      var lane = $("pitlane"), laneLen = lane.getTotalLength();
+      var c = Math.max(0, Math.min(1, S.pitClock / PIT_PAUSE));
+      var f;
+      if (c < 0.30) f = (c / 0.30) * BOX_F;
+      else if (c < 0.66) f = BOX_F;
+      else f = BOX_F + ((c - 0.66) / 0.34) * (1 - BOX_F);
+      placeOn(lane, laneLen * f);
       return;
     }
 
@@ -782,12 +846,7 @@ select {
     if (frac < 0) frac = 0;
     if (frac > 1) frac = 1;
 
-    var f = (i + frac) / s.N;
-    var len = f * trackLen;
-    var p = trackPath.getPointAtLength(len);
-    var p2 = trackPath.getPointAtLength(Math.min(trackLen, len + 1.5));
-    var a = Math.atan2(p2.y - p.y, p2.x - p.x) * 180 / Math.PI;
-    car.setAttribute("transform", "translate(" + p.x.toFixed(1) + "," + p.y.toFixed(1) + ") rotate(" + a.toFixed(1) + ")");
+    placeOn(trackPath, ((i + frac) / s.N) * trackLen);
   }
 
   /* ------------------------------------------------------------------ *
