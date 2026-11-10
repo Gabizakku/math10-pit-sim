@@ -720,34 +720,44 @@ select {
    * the circuit
    * ------------------------------------------------------------------ */
 
-  /* Monza, the Formula 1 circuit. The points are sampled from the official
-   * track map, File:Monza track map.svg on Wikimedia Commons, at 160 points a
-   * lap, then thinned to one every third. Index 0 sits 3.5 per cent of the lap
-   * before the Rettifilo, which is where the start and finish line is, and the
-   * lap runs in the F1 direction: Rettifilo, Curva Grande, Roggia, Lesmo 1 and
-   * 2, Serraglio, Ascari, Parabolica, main straight. The car's arc length
-   * through these points is the lap. */
+  /* Monza, the Formula 1 circuit, sampled from the official track map
+   * (File:Monza track map.svg, Wikimedia Commons) at 160 points a lap and
+   * thinned to one every third. Index 0 is the pit exit, which is where the
+   * start and finish line sits, and the lap runs in the F1 direction:
+   * Rettifilo, Curva Grande, Roggia, Lesmo 1 and 2, Serraglio, Ascari,
+   * Parabolica, then the main straight. The car's arc length through these
+   * points is the lap. */
   var TRACK_POINTS = [
-    [507, 264.9], [533.6, 265], [560.2, 265.2], [586.5, 267.8],
-    [596, 290.9], [581.2, 312.2], [558.8, 323], [532.5, 326.9],
-    [506, 329.3], [479.4, 330.5], [452.8, 330.9], [426.1, 331.1],
-    [399.5, 331.7], [374.4, 332.3], [347.8, 332.8], [321.2, 333.2],
-    [294.5, 333.5], [267.9, 333.8], [249.1, 324.2], [223.9, 332.8],
-    [197.5, 335.7], [170.9, 335], [146.8, 328.8], [125.2, 313.3],
-    [110.5, 291.3], [102.4, 266], [96.9, 239.9], [92.3, 213.7],
-    [87.7, 187.5], [76.1, 168.7], [65.2, 144.6], [53.6, 120.6],
-    [44, 95.9], [57.5, 75.6], [83.7, 70.5], [109.8, 65.5],
-    [130.5, 77.3], [145.8, 99.1], [160.2, 119.6], [176.4, 140.8],
-    [194.6, 160.2], [214.1, 178.4], [233.8, 196.2], [253.3, 214.4],
-    [272.9, 232.4], [291.7, 249.1], [316.7, 251.1], [339.5, 263.5],
-    [366, 265.1], [392.6, 265], [419.2, 264.9], [445.9, 264.8],
-    [472.5, 264.8], [499.1, 264.9]
+    [532.06, 326.83], [558.2, 323.07], [581.78, 311.68], [596, 290.29],
+    [586.08, 267.61], [559.99, 265.12], [533.55, 264.98], [507.12, 264.87],
+    [480.68, 264.81], [454.25, 264.79], [427.81, 264.81], [401.38, 264.88],
+    [374.94, 265], [348.51, 264.78], [325.72, 253.28], [299.81, 253.45],
+    [279.03, 237.85], [259.51, 220.03], [240.12, 202.07], [220.6, 184.24],
+    [201.06, 166.44], [182.42, 147.7], [165.78, 127.18], [150.35, 105.71],
+    [135.27, 84], [118.17, 64.4], [92.13, 68.78], [66.2, 73.91],
+    [44.72, 86.99], [49.54, 112.36], [61.28, 136.05], [71.78, 160.3],
+    [86.46, 179.31], [90.83, 205.38], [95.37, 231.42], [100.38, 257.37],
+    [107.24, 282.89], [119.24, 306.32], [138.76, 323.93], [162.89, 334.14],
+    [189.26, 335.6], [215.64, 334.45], [241.02, 327.24], [259.07, 333.85],
+    [285.5, 333.56], [311.93, 333.23], [338.37, 332.87], [364.8, 332.43],
+    [391.23, 331.87], [417.65, 331.19], [444.09, 330.88], [470.52, 330.6],
+    [496.94, 329.78], [523.3, 327.78]
   ];
 
   /* The pit lane runs beside the main straight on the outside of the circuit.
    * Entry after the Parabolica, pit boxes along the straight, exit before the
    * Rettifilo, which is how Monza's pit lane works. */
-  var PIT_LANE_OFFSET = 26;     // how far the lane sits outside the drawn track
+  /* The pit lane as drawn on the official map: entry after the Parabolica, boxes
+   * along the main straight, exit before the Rettifilo. Sampled by the same pass
+   * that sampled the circuit, so it sits exactly where Monza puts it. */
+  var PIT_LANE = [
+    [356, 332.6], [355.6, 311.6], [364.4, 311.4], [373.2, 311.3],
+    [382, 311.1], [390.7, 310.9], [399.5, 310.7], [408.2, 310.4],
+    [417.3, 310.2], [426.2, 310.1], [435.1, 310], [443.9, 309.9],
+    [452.7, 309.8], [461.5, 309.7], [470.2, 309.6], [478.8, 309.4],
+    [487.4, 309.2], [495.9, 308.8], [504.4, 308.3], [512.7, 307.7],
+    [521.2, 306.9], [529.9, 305.9], [532.06, 326.83]
+  ];
   var PIT_BOXES = 9;
   var BOX_F = 0.46;                 // where along the lane the car's box sits
   var PIT_SPOT = { x: 0, y: 356, angle: 0 };
@@ -774,24 +784,7 @@ select {
     trackLen = trackPath.getTotalLength();
 
     var lane = $("pitlane");
-    // the lane hugs the outside of the lap around the start line, the way the
-    // sketch draws the pit beside the start straight
-    var cx = 0, cy = 0, k;
-    for (k = 0; k < TRACK_POINTS.length; k++) { cx += TRACK_POINTS[k][0]; cy += TRACK_POINTS[k][1]; }
-    cx /= TRACK_POINTS.length; cy /= TRACK_POINTS.length;
-    var lanePts = [], LN = 26;
-    for (k = 0; k <= LN; k++) {
-      var len = trackLen * (0.010 + 0.105 * k / LN);   // the main straight only
-      var p = trackPath.getPointAtLength(len);
-      var p2 = trackPath.getPointAtLength(Math.min(trackLen, len + 2));
-      var tx = p2.x - p.x, ty = p2.y - p.y, tl = Math.sqrt(tx * tx + ty * ty) || 1;
-      var nx = -ty / tl, ny = tx / tl;
-      var plus = Math.pow(p.x + nx * PIT_LANE_OFFSET - cx, 2) + Math.pow(p.y + ny * PIT_LANE_OFFSET - cy, 2);
-      var minus = Math.pow(p.x - nx * PIT_LANE_OFFSET - cx, 2) + Math.pow(p.y - ny * PIT_LANE_OFFSET - cy, 2);
-      var side = plus > minus ? 1 : -1;
-      lanePts.push([p.x + nx * PIT_LANE_OFFSET * side, p.y + ny * PIT_LANE_OFFSET * side]);
-    }
-    lane.setAttribute("d", "M " + lanePts.map(function (q) { return q[0].toFixed(1) + " " + q[1].toFixed(1); }).join(" L "));
+    lane.setAttribute("d", "M " + PIT_LANE.map(function (q) { return q[0] + " " + q[1]; }).join(" L "));
 
     // pit boxes: a row along the lane, the one the car uses is highlighted
     var boxes = $("pitboxes");
