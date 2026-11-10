@@ -317,6 +317,8 @@ select {
   .btn { transition: none; }
 }
 
+.dot.inwin { fill: #ffd166; stroke: #ffd166; }
+
 </style>
 </head>
 <body>
@@ -967,7 +969,8 @@ select {
       var isBest = c[i].p === win.best, isYou = c[i].p === S.pit;
       svg.appendChild(ns("circle", {
         cx: X(c[i].p), cy: Y(c[i].t), r: isBest || isYou ? 4.2 : 2.1,
-        "class": "dot" + (isBest ? " best" : "") + (isYou ? " you" : "")
+        "class": "dot" + (isBest ? " best" : "") + (isYou ? " you" : "") +
+                 (c[i].t <= win.min + DELTA + 1e-9 ? " inwin" : "")
       }));
     }
 
