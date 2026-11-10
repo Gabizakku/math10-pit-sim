@@ -845,8 +845,11 @@ select {
     for (i = 0; i < c.length; i++) if (c[i].t > tMax) tMax = c[i].t;
     var noStop = M.noStopTime(N, S.t0, S.k);
     if (noStop > tMax) tMax = noStop;
-    var pad = (tMax - tMin) * 0.14 || 1;
-    var y0 = tMin - pad * 0.55, y1 = tMax + pad * 0.55;
+    /* The y axis gets a floor of 45 s. Without it the axis fits the curve on
+     * every redraw and the curve keeps the same shape whatever the wear, which
+     * makes a slider look dead even though the numbers changed. */
+    var span = Math.max((tMax - tMin) * 1.15, 45);
+    var y0 = tMin - span * 0.18, y1 = y0 + span;
 
     var plot = { x: CH.l, y: CH.t, w: CH.w - CH.l - CH.r, h: CH.h - CH.t - CH.b };
     var pMin = 1, pMax = N - 1;
