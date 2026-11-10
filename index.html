@@ -162,6 +162,7 @@ main {
 .btn:hover { filter: brightness(1.08); }
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+input[type="range"]:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
 .btn.ghost { background: transparent; border-color: var(--line); color: var(--text); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 
@@ -361,20 +362,12 @@ select {
       </div>
 
       <div class="simrow">
-        <button id="play" class="btn" type="button">▶ Run race</button>
+        <button id="play" class="btn" type="button">▶ Play</button>
         <button id="reset" class="btn ghost" type="button">Reset</button>
         <div class="pitfield">
-          <label for="pitlap">Pit after lap</label>
+          <label for="pitlap">Pit stop on lap</label>
           <input id="pitlap" type="number" min="1" step="1" inputmode="numeric" value="27">
           <span class="hint" id="pitrange"></span>
-        </div>
-        <div class="speedfield">
-          <label for="speed">Demo speed</label>
-          <select id="speed">
-            <option value="5" selected>5×</option>
-            <option value="20">20×</option>
-            <option value="60">60×</option>
-          </select>
         </div>
       </div>
 
@@ -384,7 +377,7 @@ select {
         <div class="tyre"><span class="lbl">Tyre age</span><b id="tyreage">0 laps</b></div>
       </div>
 
-      <p id="simnote" class="note">Press <b>Run race</b>. The car drives the circuit at 5× real time and stands in the pit box for 1 second, the 20-second stop compressed.</p>
+      <p id="simnote" class="note">Press <b>Play</b>. The car drives the circuit at 5× real time and stands in the pit box for 1 second, the 20-second stop compressed.</p>
     </section>
 
     <aside id="right">
@@ -392,24 +385,23 @@ select {
       <section id="params" class="panel" aria-label="Parameters">
         <div class="panelhead">
           <h2>1 · Parameters</h2>
-          <button id="presets" class="mini" type="button">Reset</button>
         </div>
 
         <div class="slider">
-          <label for="s-t0">Fresh-tyre lap time <span class="val" id="v-t0">1:24.500</span></label>
-          <input id="s-t0" type="range" min="70" max="100" step="0.5" value="84.5">
+          <label for="s-t0">Fresh-tyre lap time (t₀) <span class="val" id="v-t0">1:24.500</span></label>
+          <input id="s-t0" type="range" min="60" max="120" step="0.5" value="84.5">
           <span class="sub">t₀, seconds for a lap on new tyres</span>
         </div>
 
         <div class="slider">
-          <label for="s-k">Tyre wear <span class="val" id="v-k">0.035 s/lap</span></label>
-          <input id="s-k" type="range" min="0.01" max="0.3" step="0.005" value="0.035">
+          <label for="s-k">Tyre degradation coefficient (k) <span class="val" id="v-k">0.035 s/lap</span></label>
+          <input id="s-k" type="range" min="0" max="0.3" step="0.005" value="0.035">
           <span class="sub">k, seconds a lap adds for every lap on the set</span>
         </div>
 
         <div class="slider">
-          <label for="s-n">Race distance <span class="val" id="v-n">53 laps</span></label>
-          <input id="s-n" type="range" min="20" max="80" step="1" value="53">
+          <label for="s-n">Total laps (n) <span class="val" id="v-n">53 laps</span></label>
+          <input id="s-n" type="range" min="2" max="80" step="1" value="53">
           <span class="sub">N, total laps in the race</span>
         </div>
 
@@ -1102,7 +1094,7 @@ select {
     S.running = false;
     S.finished = true;
     S.raf = 0;
-    $("play").textContent = "▶ Run again";
+    $("play").textContent = "▶ Play again";
     $("play").disabled = false;
     paint();
   }
@@ -1115,11 +1107,11 @@ select {
     S.phase = "lap";
     S.stopped = false;
     S.pitClock = 0;
-    $("play").textContent = "▶ Run race";
+    $("play").textContent = "▶ Play";
     $("play").disabled = false;
     if (!keepNote) {
       var win = S.win;
-      $("simnote").innerHTML = 'Press <b>Run race</b>. The car drives the circuit at <b>' + S.speed +
+      $("simnote").innerHTML = 'Press <b>Play</b>. The car drives the circuit at <b>' + S.speed +
         '×</b> real time and stands in the pit box for ' + PIT_PAUSE.toFixed(0) +
         ' second, the 20-second stop compressed. Best lap here: <b>' + win.best + '</b>.';
     }
@@ -1195,27 +1187,7 @@ select {
     $("play").addEventListener("click", runOrPause);
     $("reset").addEventListener("click", function () { resetSim(); });
 
-    $("presets").addEventListener("click", function () {
-      $("s-t0").value = DEFAULTS.t0;
-      $("s-k").value = DEFAULTS.k;
-      $("s-n").value = DEFAULTS.N;
-      readParams();
-      build();
-      S.pit = S.win.best;
-      $("pitlap").value = S.pit;
-      $("pitlap").max = S.N - 1;
-      $("pitrange").textContent = "1–" + (S.N - 1);
-      showParams();
-      drawChart();
-      updateVerdict();
-      resetSim();
-    });
 
-    $("speed").addEventListener("change", function () {
-      S.speed = parseFloat(this.value) || 5;
-      $("speedchip").textContent = S.speed + "× speed";
-      resetSim();
-    });
 
     // pause when the tab is hidden so the clock never jumps
     document.addEventListener("visibilitychange", function () {
