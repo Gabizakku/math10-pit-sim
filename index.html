@@ -33,13 +33,14 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  overflow: hidden;
+  overflow: auto;
 }
 
 #stage {
   position: relative;
   width: 100vw;
   height: 100dvh;
+  min-height: 620px;
   margin: 0 auto;
   padding: 0.9em 1.15em 0.55em;
   display: grid;
@@ -1194,28 +1195,42 @@ select {
 
 
 
-    // a window can be shorter than the design wants, so shrink to fit rather than clip
+    // fit the page to the window it lands in. measure the lowest pixel any element reaches,
+    // because the stage hides overflow and a scrollHeight test cannot see the clipping.
     function fitStage() {
+      window.__fitCalls = (window.__fitCalls || 0) + 1;
       var st = document.getElementById("stage");
-      var tries = 0, k = 1;
-      st.style.zoom = "";
-      while (tries++ < 4) {
-        var vh = document.documentElement.clientHeight;
-        var vw = document.documentElement.clientWidth;
-        var over = st.scrollHeight - vh;
-        var side = st.scrollWidth - vw;
-        if (over <= 1 && side <= 1) break;
-        var ratio = Math.min(over > 1 ? vh / st.scrollHeight : 1, side > 1 ? vw / st.scrollWidth : 1);
-        k = k * (ratio - 0.004);
-        st.style.zoom = k;
+      var k = 1, i, vh, vw, low, top;
+
+      st.style.transform = "none";
+      st.style.width = "";
+
+      for (i = 0; i < 3; i++) {
+        vh = document.documentElement.clientHeight;
+        vw = document.documentElement.clientWidth;
+        top = st.getBoundingClientRect().top;
+        low = 0;
+        Array.prototype.forEach.call(st.querySelectorAll("*"), function (e) {
+          var b = e.getBoundingClientRect().bottom;
+          if (b > low) low = b;
+        });
+        var need = low - top;
+        if (need <= vh + 1) break;
+        k = k * (vh / need) * 0.995;
+        st.style.transformOrigin = "top left";
+        st.style.transform = "scale(" + k + ")";
+        st.style.width = (100 / k) + "vw";   // reflow wider, which also makes it shorter
       }
-      var b = document.getElementById("build");
-      if (b) b.textContent = "build 1.1 fit · " + document.documentElement.clientWidth + "x" +
-        document.documentElement.clientHeight + (k < 0.999 ? " · scaled " + Math.round(k * 100) + "%" : "");
+
+      var b2 = document.getElementById("build");
+      if (b2) b2.textContent = "build 1.1 fit·" + vw + "x" + vh +
+        (k < 0.999 ? "·scaled " + Math.round(k * 100) + "%" : "");
     }
+    window.fitStage = fitStage;
     fitStage();
-    window.addEventListener("resize", function () { requestAnimationFrame(fitStage); });
-    window.addEventListener("orientationchange", function () { requestAnimationFrame(fitStage); });
+    function refit() { fitStage(); setTimeout(fitStage, 220); }
+    window.addEventListener("resize", refit);
+    window.addEventListener("orientationchange", refit);
     window.addEventListener("load", fitStage);
 
     // pause when the tab is hidden so the clock never jumps
