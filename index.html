@@ -272,8 +272,8 @@ select {
 .curve { fill: none; stroke: var(--blue); stroke-width: 2.4; }
 .curve-glow { fill: none; stroke: rgba(90, 169, 255, 0.18); stroke-width: 7; }
 .dot { fill: #0a1220; stroke: var(--blue); stroke-width: 1.4; }
-.dot.best { fill: var(--green); stroke: #0a1220; }
 .dot.you { fill: var(--accent); stroke: #fff; stroke-width: 1.4; }
+.dot.best { fill: var(--green); stroke: #0a1220; }
 .window { fill: rgba(47, 220, 160, 0.13); }
 .window-edge { stroke: rgba(47, 220, 160, 0.55); stroke-width: 1; stroke-dasharray: 3 3; }
 .window-label { fill: var(--green); font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; }
@@ -283,6 +283,7 @@ select {
 .nostop { stroke: #6f7f96; stroke-width: 1; stroke-dasharray: 2 4; }
 .nostop-label { fill: #8394ad; font-size: 9px; }
 
+.caption { margin: 0; font-size: 0.72em; color: var(--muted); line-height: 1.3; }
 .verdict { margin: 0; font-size: 0.76em; line-height: 1.4; color: var(--muted); }
 .verdict b { color: var(--text); font-weight: 700; }
 .verdict .good { color: var(--green); font-weight: 700; }
@@ -414,6 +415,7 @@ select {
       <!-- PART 2 of the expected output: the graph -->
       <section id="graph" class="panel" aria-label="Total race time by pit lap">
         <div class="panelhead"><h2>2 · Total race time by pit lap</h2></div>
+        <p class="caption">Piecewise comparison: stint one, the 20 s stop, stint two, for every lap you could stop on.</p>
         <svg id="chart" viewBox="0 0 560 300" role="img"
              aria-label="Graph of the predicted total race time for every lap you could pit on, with the pit window shaded."></svg>
         <p id="verdict" class="verdict"></p>
