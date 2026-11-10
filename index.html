@@ -39,7 +39,7 @@ html, body {
 #stage {
   position: relative;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   margin: 0 auto;
   padding: 0.9em 1.15em 0.55em;
   display: grid;
@@ -430,7 +430,7 @@ select {
       <span><span class="k">T(p)</span> = S(p) + 20 + S(N−p)</span>
       <span><span class="k">window</span>: T(p) ≤ T(p*) + 1</span>
     </div>
-    <span class="hintline">Linear tyre wear · one stop · lap times in seconds · <a class="src" href="https://github.com/Gabizakku/math10-pit-sim" target="_blank" rel="noopener">code</a></span>
+    <span class="hintline">Linear tyre wear · one stop · lap times in seconds · <b id="build">build 1.1 fit</b> · <a class="src" href="https://github.com/Gabizakku/math10-pit-sim" target="_blank" rel="noopener">code</a></span>
   </footer>
 
 </div>
@@ -1193,6 +1193,30 @@ select {
     $("reset").addEventListener("click", function () { resetSim(); });
 
 
+
+    // a window can be shorter than the design wants, so shrink to fit rather than clip
+    function fitStage() {
+      var st = document.getElementById("stage");
+      var tries = 0, k = 1;
+      st.style.zoom = "";
+      while (tries++ < 4) {
+        var vh = document.documentElement.clientHeight;
+        var vw = document.documentElement.clientWidth;
+        var over = st.scrollHeight - vh;
+        var side = st.scrollWidth - vw;
+        if (over <= 1 && side <= 1) break;
+        var ratio = Math.min(over > 1 ? vh / st.scrollHeight : 1, side > 1 ? vw / st.scrollWidth : 1);
+        k = k * (ratio - 0.004);
+        st.style.zoom = k;
+      }
+      var b = document.getElementById("build");
+      if (b) b.textContent = "build 1.1 fit · " + document.documentElement.clientWidth + "x" +
+        document.documentElement.clientHeight + (k < 0.999 ? " · scaled " + Math.round(k * 100) + "%" : "");
+    }
+    fitStage();
+    window.addEventListener("resize", function () { requestAnimationFrame(fitStage); });
+    window.addEventListener("orientationchange", function () { requestAnimationFrame(fitStage); });
+    window.addEventListener("load", fitStage);
 
     // pause when the tab is hidden so the clock never jumps
     document.addEventListener("visibilitychange", function () {
