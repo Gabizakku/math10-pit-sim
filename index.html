@@ -863,10 +863,13 @@ select {
       svg.appendChild(ns("text", { x: plot.x - 7, y: yv + 3.5, "text-anchor": "end", "class": "tick" }, fmtShort(tv)));
     }
 
-    // x ticks
-    var xticks = 6;
-    for (i = 0; i <= xticks; i++) {
-      var pv = Math.round(pMin + (pMax - pMin) * i / xticks), xv = X(pv);
+    // x ticks on round lap numbers, so the axis reads 10, 20, 30 and not 10, 18, 27
+    var steps = [1, 2, 5, 10, 20, 25, 50], step = steps[steps.length - 1];
+    for (i = 0; i < steps.length; i++) {
+      if ((pMax - pMin) / steps[i] <= 6) { step = steps[i]; break; }
+    }
+    for (var pv = Math.ceil(pMin / step) * step; pv <= pMax; pv += step) {
+      var xv = X(pv);
       svg.appendChild(ns("line", { x1: xv, y1: plot.y, x2: xv, y2: plot.y + plot.h, "class": "grid" }));
       svg.appendChild(ns("text", { x: xv, y: plot.y + plot.h + 15, "text-anchor": "middle", "class": "tick" }, pv));
     }
