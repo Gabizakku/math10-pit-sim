@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>When Do We Pit? — A pit strategy simulator</title>
-<meta name="description" content="An interactive MATH 10 exhibit: model tyre wear, compare every pit lap, and run the race.">
+<meta name="description" content="An interactive MATH 10 exhibit: model tyre wear, compare every pit lap, fit the model to lap times, and run the race.">
 <meta name="color-scheme" content="dark">
 <style>
 /* When Do We Pit? — exhibit styles.
@@ -38,9 +38,8 @@ html, body {
 
 #stage {
   position: relative;
-  width: 100vw;
-  height: 100dvh;
-  min-height: 620px;
+  width: 100%;
+  min-height: 100dvh;
   margin: 0 auto;
   padding: 0.9em 1.15em 0.55em;
   display: grid;
@@ -113,7 +112,7 @@ main {
 
 /* ---------- the 3D stage and its heads-up display ---------- */
 
-#simstage { position: relative; min-height: 0; border-radius: 0.45em; overflow: hidden; background: #0a1220; }
+#simstage { position: relative; min-height: clamp(300px, 46vh, 560px); border-radius: 0.45em; overflow: hidden; background: #0a1220; }
 #gl { display: block; width: 100%; height: 100%; }
 
 #hud { position: absolute; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; }
@@ -318,9 +317,9 @@ select {
 
 /* ---------- right column ---------- */
 
-#right { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0.75em; min-height: 0; }
+#right { display: grid; grid-template-rows: auto auto minmax(200px, 1fr) auto; gap: 0.6em; min-height: 0; }
 
-.panel { padding: 0.62em 0.8em; display: flex; flex-direction: column; gap: 0.35em; }
+.panel { padding: 0.62em 0.8em; display: flex; flex-direction: column; gap: 0.35em; overflow: visible; }
 
 .slider { display: grid; grid-template-columns: 1fr auto; gap: 0.04em 0.5em; }
 .slider label { font-size: 0.8em; color: var(--text); }
@@ -337,7 +336,7 @@ select {
 .fixed { margin: 0.15em 0 0; font-size: 0.7em; color: var(--muted); }
 .fixed b { color: var(--text); font-weight: 600; }
 
-#chart { width: 100%; flex: 1 1 auto; min-height: 0; display: block; }
+#chart { width: 100%; flex: 1 1 auto; min-height: 200px; display: block; }
 
 .axis { stroke: #2a3852; stroke-width: 1; }
 .grid { stroke: #16202f; stroke-width: 1; }
@@ -412,6 +411,68 @@ select {
 #tower .info i { font-style: normal; font-size: 0.86em; font-weight: 800; color: #fff; }
 #tower .info i.old { color: var(--amber); }
 
+/* ---------- build 1.2: five panels, presets, the model, the fit ---------- */
+
+.tag {
+  font-size: 0.64em; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.15em 0.55em; white-space: nowrap;
+}
+
+.presets { display: flex; flex-wrap: wrap; gap: 0.35em; }
+.presets button {
+  font: inherit; font-size: 0.68em; letter-spacing: 0.03em;
+  color: var(--text); background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.28em 0.7em; cursor: pointer;
+}
+.presets button:hover { border-color: var(--accent); color: var(--blue); }
+
+.fm { display: grid; grid-template-columns: 5.4em 1fr auto; gap: 0.4em; align-items: baseline; font-size: 0.74em; }
+.fm .lhs { color: var(--muted); }
+.fm code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: var(--text); font-size: 0.98em;
+}
+.fm .rhs {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums; font-weight: 700; color: var(--blue); white-space: nowrap;
+}
+
+#fit svg { width: 100%; height: auto; display: block; }
+#fit .axis { stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; }
+#fit .axislabel { fill: var(--muted); font-size: 11px; }
+#fit .fitline { stroke: var(--amber); stroke-width: 2.2; fill: none; }
+#fit .pt { fill: rgba(120, 190, 255, 0.85); }
+#fit .pt.out { fill: transparent; stroke: var(--red, #ff6b6b); stroke-width: 1.6; }
+
+.fitread { font-size: 0.72em; color: var(--muted); line-height: 1.4; }
+.fitread b { color: var(--text); font-family: ui-monospace, Consolas, monospace; font-weight: 700; }
+.fitrow { display: flex; align-items: center; gap: 0.6em; flex-wrap: wrap; }
+.fitrow button, #sim .simrow button {
+  font: inherit; font-size: 0.7em; color: var(--text);
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line);
+  border-radius: 0.35em; padding: 0.3em 0.7em; cursor: pointer;
+}
+.fitrow button:hover { border-color: var(--accent); color: var(--blue); }
+
+.simhint { font-size: 0.66em; color: var(--muted); }
+
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  #right { grid-template-rows: none; }
+  #sim { min-height: 60vh; }
+}
+
+.timer { font-size: 0.7em; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+.timer b { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 1.15em;
+  color: var(--text); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.verdict { font-size: 0.74em; line-height: 1.45; color: var(--muted); }
+.verdict b { color: var(--text); }
+.verdict .good { color: var(--green); }
+.verdict .warn { color: var(--amber); }
+.verdict .you { color: var(--blue); font-weight: 700; }
+
 </style>
 </head>
 <body>
@@ -426,10 +487,11 @@ select {
   </header>
 
   <main>
-    <!-- PART 3 of the expected output: the race simulation -->
+    <!-- 1 · the race simulation (expected output, part 3) -->
     <section id="sim" aria-label="Race simulation">
       <div class="panelhead">
-        <h2>3 · Race simulation</h2>
+        <h2>1 · Race simulation</h2>
+        <span class="tag">expected output, part 3</span>
       </div>
 
       <div id="simstage">
@@ -438,26 +500,28 @@ select {
       </div>
 
       <div class="simrow">
-        <button id="play" class="btn" type="button">&#9654; Play</button>
-        <button id="reset" class="btn ghost" type="button">Reset</button>
-        <button id="finish" class="btn ghost" type="button" title="jump to the finish">Finish</button>
-        <button id="speed" class="btn ghost" type="button" title="playback speed; the speeds shown are always real">20&times; demo</button>
-        <div class="pitfield">
-          <label for="pitlap">Pit stop on lap</label>
-          <input id="pitlap" type="number" min="1" step="1" inputmode="numeric" value="26">
-          <span class="hint" id="pitrange"></span>
-        </div>
-        <div class="clock"><span class="lbl">Race timer</span><b id="clock" aria-live="off">0:00.000</b></div>
+        <button id="play">▶ Play</button>
+        <button id="reset">Reset</button>
+        <span class="timer">race timer <b id="clock">0:00.000</b></span>
+        <span class="simhint">runs at 20× real time; the stop is compressed to one second</span>
       </div>
 
-      <p id="simnote" class="note">Press <b>Play</b>. One car, one stop, the real Monza layout at 5&times; replay speed; the speed on screen is the model&#39;s, not a stopwatch.</p>
+      <p id="simnote" class="note">Press Play. The race is simulated lap by lap from your numbers.</p>
     </section>
 
     <aside id="right">
-      <!-- PART 1 of the expected output: the parameters -->
+
+      <!-- 2 · the inputs (expected output, part 1) -->
       <section id="params" class="panel" aria-label="Parameters">
         <div class="panelhead">
-          <h2>1 · Parameters</h2>
+          <h2>2 · Parameters</h2>
+          <span class="tag">expected output, part 1</span>
+        </div>
+
+        <div class="presets" id="presets">
+          <button data-preset="monza">Monza, 53 laps</button>
+          <button data-preset="highwear">High wear</button>
+          <button data-preset="nowear">Barely any wear</button>
         </div>
 
         <div class="slider">
@@ -473,36 +537,71 @@ select {
         </div>
 
         <div class="slider">
+          <label for="s-L">Pit-stop loss (L) <span class="val" id="v-L">20.0 s</span></label>
+          <input id="s-L" type="range" min="5" max="45" step="0.5" value="20">
+          <span class="sub">L, seconds lost in the pit lane</span>
+        </div>
+
+        <div class="slider">
           <label for="s-n">Total laps (n) <span class="val" id="v-n">53 laps</span></label>
           <input id="s-n" type="range" min="2" max="80" step="1" value="53">
           <span class="sub">N, total laps in the race</span>
         </div>
 
-        <p class="fixed">Pit stop costs <b>20.00 s</b> · pit window is the cheapest time <b>+ 1.00 s</b></p>
+        <div class="slider">
+          <label for="pitlap">Current lap: stop on lap <span class="val" id="v-p">26</span></label>
+          <input id="pitlap" type="range" min="1" max="52" step="1" value="26">
+          <span class="sub">p, the lap you are deciding about · <span id="pitrange">1–52</span></span>
+        </div>
       </section>
 
-      <!-- PART 2 of the expected output: the graph -->
-      <section id="graph" class="panel" aria-label="Total race time by pit lap">
-        <div class="panelhead"><h2>2 · Total race time by pit lap</h2></div>
-        <p class="caption">Piecewise comparison: stint one, the 20 s stop, stint two, for every lap you could stop on.</p>
-        <svg id="chart" viewBox="0 0 560 300" role="img"
-             aria-label="Graph of the predicted total race time for every lap you could pit on, with the pit window shaded."></svg>
-        <p id="verdict" class="verdict"></p>
+      <!-- 3 · the model, with the reader's own numbers -->
+      <section id="model" class="panel" aria-label="The model with your numbers">
+        <div class="panelhead"><h2>3 · The model, in your numbers</h2></div>
+        <div class="fm"><span class="lhs">lap n costs</span><code>t(n) = t₀ + k·n</code><span class="rhs" id="m-tn">—</span></div>
+        <div class="fm"><span class="lhs">first stint</span><code>S(p) = p·t₀ + k·p(p−1)/2</code><span class="rhs" id="m-sp">—</span></div>
+        <div class="fm"><span class="lhs">whole race</span><code>T(p) = S(p) + L + S(N−p)</code><span class="rhs" id="m-tp">—</span></div>
+        <div class="fm"><span class="lhs">stop only if</span><code>L &lt; k·N²/4</code><span class="rhs" id="m-be">—</span></div>
+        <p class="note" id="m-win">—</p>
       </section>
+
+      <!-- 4 · the curve (expected output, part 2) -->
+      <section id="graph" class="panel" aria-label="Total race time by pit lap">
+        <div class="panelhead">
+          <h2>4 · Total race time by pit lap</h2>
+          <span class="tag">expected output, part 2</span>
+        </div>
+        <svg id="chart" viewBox="0 0 560 300" role="img" aria-label="Total race time for every pit lap"></svg>
+        <p class="note">Piecewise comparison: stint one, the pit stop, stint two, for every lap you could stop on.</p>
+        <div id="verdict" class="verdict"></div>
+      </section>
+
+      <!-- 5 · the data fit: lap times in, t0 and k out -->
+      <section id="fit" class="panel" aria-label="Fitting the model to lap times">
+        <div class="panelhead">
+          <h2>5 · Fitting it to lap times</h2>
+          <span class="tag">stint data → t₀ and k</span>
+        </div>
+        <svg id="fitchart" viewBox="0 0 560 260" role="img" aria-label="Lap times with a least-squares fit"></svg>
+        <div id="fit-readout" class="fitread"></div>
+        <div class="fitrow">
+          <button id="fit-use">Use the fitted numbers</button>
+          <span class="note" id="fit-note">Dataset: a simulated stint, labelled simulated everywhere.</span>
+        </div>
+      </section>
+
     </aside>
   </main>
 
-  <footer id="formulas">
-    <div class="f">
-      <span><span class="k">t(n)</span> = t₀ + k·n</span>
-      <span><span class="k">S(p)</span> = p·t₀ + k·p(p−1)/2</span>
-      <span><span class="k">T(p)</span> = S(p) + 20 + S(N−p)</span>
-      <span><span class="k">window</span>: T(p) ≤ T(p*) + 1</span>
-    </div>
-    <span class="hintline">Linear tyre wear · one stop · lap times in seconds · <b id="build">build 1.1 fit</b> · <a class="src" href="https://github.com/Gabizakku/math10-pit-sim" target="_blank" rel="noopener">code</a></span>
+  <footer id="bottom">
+    <p id="build" class="build">build —</p>
+    <p class="formulas" aria-hidden="true">t(n) = t₀ + k·n · S(p) = p·t₀ + k·p(p−1)/2 · T(p) = S(p) + L + S(N−p) · window: T(p) ≤ T(p*) + 1</p>
   </footer>
-
 </div>
+
+<script>
+window.STINT = [84.394, 84.488, 84.529, 84.645, 84.649, 84.683, 84.724, 84.722, 84.901, 84.764, 84.768, 84.811, 84.944, 95.873, 84.939, 84.989, 85.0, 85.134, 85.07, 85.126];
+</script>
 <script>
 /* Monza centreline, generated by tools/make_circuit.py. Do not edit.
  * Source: OpenStreetMap via bacinger/f1-circuits, ODbL. */
@@ -1440,7 +1539,7 @@ window.TrackMap = (function () {
 
   var $ = function (id) { return document.getElementById(id); };
 
-  var DEFAULTS = { t0: 84.5, k: 0.035, N: 53 };
+  var DEFAULTS = { t0: 84.5, k: 0.035, L: 20, N: 53 };
 
   var S = {
     t0: DEFAULTS.t0, k: DEFAULTS.k, N: DEFAULTS.N, pit: 27,
@@ -1514,6 +1613,8 @@ window.TrackMap = (function () {
     S.t0 = parseFloat($("s-t0").value);
     S.k = parseFloat($("s-k").value);
     S.N = parseInt($("s-n").value, 10);
+    S.L = parseFloat($("s-L").value);
+    L = S.L;                       // pit loss is an input now, not a fixed constant
   }
 
   function clampPit(v) {
@@ -1525,7 +1626,9 @@ window.TrackMap = (function () {
   function showParams() {
     $("v-t0").textContent = fmt(S.t0);
     $("v-k").textContent = S.k.toFixed(3) + " s/lap";
+    $("v-L").textContent = S.L.toFixed(1) + " s";
     $("v-n").textContent = S.N + " laps";
+    $("v-p").textContent = S.pit;
   }
 
   /* ------------------------------------------------------------------ *
@@ -1556,7 +1659,8 @@ window.TrackMap = (function () {
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
     var N = S.N, c = M.curve(N, S.t0, S.k, L), win = S.win;
-    var i, d;
+    var eligible = 0, i, d;
+    for (i = 0; i < c.length; i++) if (c[i].t <= win.min + DELTA + 1e-9) eligible++;
 
     var tMin = win.min, tMax = -Infinity;
     for (i = 0; i < c.length; i++) if (c[i].t > tMax) tMax = c[i].t;
@@ -1604,7 +1708,7 @@ window.TrackMap = (function () {
     svg.appendChild(ns("line", { x1: xLo, y1: plot.y, x2: xLo, y2: plot.y + plot.h, "class": "window-edge" }));
     svg.appendChild(ns("line", { x1: xHi, y1: plot.y, x2: xHi, y2: plot.y + plot.h, "class": "window-edge" }));
     svg.appendChild(ns("text", { x: xLo + 4, y: plot.y + 12, "class": "window-label" },
-      "PIT WINDOW · LAPS " + win.lo + "–" + win.hi));
+      "PIT WINDOW · LAPS " + win.lo + "–" + win.hi + " · " + eligible + " LAPS"));
 
     // no-stop reference
     if (noStop >= y0 && noStop <= y1) {
@@ -1832,16 +1936,129 @@ window.TrackMap = (function () {
     build();
     drawChart();
     updateVerdict();
+    updateModel();
     resetSim();
   }
 
   function onPitLap() {
     S.pit = clampPit($("pitlap").value);
     $("pitlap").value = S.pit;
+    showParams();
     build();
     drawChart();
     updateVerdict();
+    updateModel();
     resetSim();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * part 3 — the model, in the reader's own numbers
+   * ------------------------------------------------------------------ */
+
+  function windowCount() {
+    var c = M.curve(S.N, S.t0, S.k, L), n = 0, i;
+    for (i = 0; i < c.length; i++) if (c[i].t <= S.win.min + DELTA + 1e-9) n++;
+    return n;
+  }
+
+  function updateModel() {
+    var p = S.pit, n = S.N, Ls = L;
+    var tn = S.t0 + S.k * n;
+    var sp = p * S.t0 + S.k * p * (p - 1) / 2;
+    var total = S.sched ? S.sched.total : M.raceTimePlan(n, S.t0, S.k, Ls, [p, n - p]);
+    var be = S.k * n * n / 4;
+    $("m-tn").textContent = fmt(tn);
+    $("m-sp").textContent = fmt(sp);
+    $("m-tp").textContent = fmt(total);
+    $("m-be").textContent = Ls.toFixed(1) + " s against " + be.toFixed(2) + " s, so " +
+      (Ls < be ? "stopping can pay" : "staying out is cheaper");
+    $("m-win").textContent = "pit window: T(p) \u2264 T(p*) + " + DELTA.toFixed(2) +
+      " s, laps " + S.win.lo + "\u2013" + S.win.hi + " (" + windowCount() + " eligible laps)";
+  }
+
+  /* ------------------------------------------------------------------ *
+   * part 4 — the fit: lap times in, t0 and k out
+   * ------------------------------------------------------------------ */
+
+  var FT = { w: 560, h: 260, l: 58, r: 14, t: 16, b: 32 };
+
+  function rsq(pairs, t0, k) {
+    var n = pairs.length, my = 0, i;
+    for (i = 0; i < n; i++) my += pairs[i][1];
+    my /= n;
+    var ssr = 0, sst = 0;
+    for (i = 0; i < n; i++) {
+      var pred = t0 + k * pairs[i][0];
+      ssr += Math.pow(pairs[i][1] - pred, 2);
+      sst += Math.pow(pairs[i][1] - my, 2);
+    }
+    return sst > 0 ? 1 - ssr / sst : 1;
+  }
+
+  function drawFit() {
+    var svg = $("fitchart");
+    if (!svg) return;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var laps = (window.STINT || []).slice();
+    var out = $("fit-readout");
+    if (laps.length < 3) { if (out) out.textContent = "No stint data in the page."; return; }
+
+    var pairs = laps.map(function (t, i) { return [i, t]; });
+    var fit = M.fitStint(pairs, true, 3.0);
+    var kept = fit.kept || [];
+    var xs = pairs.map(function (q) { return q[0]; });
+    var ys = pairs.map(function (q) { return q[1]; });
+    var xMax = Math.max.apply(null, xs);
+    var yLo = Math.min.apply(null, ys), yHi = Math.max.apply(null, ys);
+    var pad = (yHi - yLo) * 0.18 || 0.3;
+    yLo -= pad; yHi += pad;
+
+    var X = function (x) { return FT.l + (x / (xMax || 1)) * (FT.w - FT.l - FT.r); };
+    var Y = function (y) { return FT.t + (1 - (y - yLo) / ((yHi - yLo) || 1)) * (FT.h - FT.t - FT.b); };
+
+    svg.appendChild(ns("line", { x1: FT.l, y1: FT.h - FT.b, x2: FT.w - FT.r, y2: FT.h - FT.b, "class": "axis" }));
+    svg.appendChild(ns("line", { x1: FT.l, y1: FT.t, x2: FT.l, y2: FT.h - FT.b, "class": "axis" }));
+    svg.appendChild(ns("text", { x: FT.l, y: FT.h - 8, "class": "axislabel" }, "lap"));
+    svg.appendChild(ns("text", { x: 8, y: FT.t + 8, "class": "axislabel" }, "lap time, s"));
+
+    svg.appendChild(ns("line", {
+      x1: X(0), y1: Y(fit.t0), x2: X(xMax), y2: Y(fit.t0 + fit.k * xMax), "class": "fitline"
+    }));
+
+    pairs.forEach(function (q) {
+      var isKept = kept.indexOf(q[0]) >= 0;
+      svg.appendChild(ns("circle", { cx: X(q[0]), cy: Y(q[1]), r: 3.4, "class": "pt" + (isKept ? "" : " out") }));
+    });
+
+    var rejected = pairs.filter(function (q) { return kept.indexOf(q[0]) < 0; })
+      .map(function (q) { return q[0] + 1; });
+    var used = pairs.filter(function (q) { return kept.indexOf(q[0]) >= 0; });
+
+    if (out) {
+      out.innerHTML = "fitted <b>t\u2080 = " + fmt(fit.t0) + "</b> \u00b7 <b>k = " + fit.k.toFixed(4) +
+        " s/lap</b> \u00b7 R\u00b2 = " + rsq(used, fit.t0, fit.k).toFixed(3) +
+        " over " + used.length + " of " + pairs.length + " laps" +
+        (rejected.length ? " \u00b7 lap" + (rejected.length > 1 ? "s " : " ") + rejected.join(", ") +
+                           " dropped (the in-lap: traffic and cold tyres)"
+                         : " \u00b7 no lap dropped");
+    }
+    S.fit = fit;
+  }
+
+  var PRESETS = {
+    monza:    { t0: 84.5, k: 0.035, L: 20, N: 53 },
+    highwear: { t0: 84.5, k: 0.09,  L: 20, N: 53 },
+    nowear:   { t0: 90.0, k: 0.005, L: 20, N: 53 }
+  };
+
+  function applyPreset(name) {
+    var v = PRESETS[name];
+    if (!v) return;
+    $("s-t0").value = v.t0;
+    $("s-k").value = v.k;
+    $("s-L").value = v.L;
+    $("s-n").value = v.N;
+    onParam();
   }
 
   function init() {
@@ -1853,7 +2070,10 @@ window.TrackMap = (function () {
 
     $("s-t0").value = DEFAULTS.t0;
     $("s-k").value = DEFAULTS.k;
+    $("s-L").value = DEFAULTS.L;
     $("s-n").value = DEFAULTS.N;
+    S.L = DEFAULTS.L;
+    L = S.L;
 
     readParams();
     build();
@@ -1864,6 +2084,8 @@ window.TrackMap = (function () {
     showParams();
     drawChart();
     updateVerdict();
+    updateModel();
+    drawFit();
     resetSim(false);
     showView();
 
@@ -1878,16 +2100,22 @@ window.TrackMap = (function () {
       });
     });
 
-    ["s-t0", "s-k", "s-n"].forEach(function (id) {
+    ["s-t0", "s-k", "s-L", "s-n"].forEach(function (id) {
       $(id).addEventListener("input", onParam);
     });
-    $("pitlap").addEventListener("change", onPitLap);
-    $("pitlap").addEventListener("blur", onPitLap);
-    $("pitlap").addEventListener("keydown", function (e) { if (e.key === "Enter") onPitLap(); });
+    $("pitlap").addEventListener("input", onPitLap);
     $("play").onclick = runOrPause;
-    var fb = $("finish"); if (fb) fb.onclick = finishNow;
-    var sb = $("speed"); if (sb) sb.onclick = cycleSpeed;
     $("reset").onclick = function () { resetSim(); };
+    Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function (b) {
+      b.addEventListener("click", function () { applyPreset(b.getAttribute("data-preset")); });
+    });
+    var use = $("fit-use");
+    if (use) use.onclick = function () {
+      if (!S.fit) return;
+      $("s-t0").value = Math.max(60, Math.min(120, Math.round(S.fit.t0 * 2) / 2));
+      $("s-k").value = Math.max(0, Math.min(0.3, Math.round(S.fit.k * 1000) / 1000));
+      onParam();
+    };
 
 
 
@@ -1901,6 +2129,7 @@ window.TrackMap = (function () {
       st.style.transform = "none";
       st.style.width = "";
 
+      var scrolling = false;
       for (i = 0; i < 3; i++) {
         vh = document.documentElement.clientHeight;
         vw = document.documentElement.clientWidth;
@@ -1912,15 +2141,25 @@ window.TrackMap = (function () {
         });
         var need = low - top;
         if (need <= vh + 1) break;
-        k = k * (vh / need) * 0.995;
+        var shrink = vh / need;
+        // a small shrink is worth it; a big one would make the type unreadable, so the
+        // page scrolls instead. Five panels are more than one screen on a laptop.
+        if (shrink < 0.9) { scrolling = true; break; }
+        k = k * shrink * 0.995;
         st.style.transformOrigin = "top left";
         st.style.transform = "scale(" + k + ")";
         st.style.width = (100 / k) + "vw";   // reflow wider, which also makes it shorter
       }
+      if (scrolling) {
+        st.style.transform = "none";
+        st.style.width = "";
+        st.style.height = "auto";
+        st.style.minHeight = "100dvh";
+      }
 
       var b2 = document.getElementById("build");
-      if (b2) b2.textContent = "build 1.1 fit·" + vw + "x" + vh +
-        (k < 0.999 ? "·scaled " + Math.round(k * 100) + "%" : "");
+      if (b2) b2.textContent = "build 1.2 · " + vw + "x" + vh +
+        (scrolling ? " · scroll" : (k < 0.999 ? " · scaled " + Math.round(k * 100) + "%" : ""));
     }
     window.fitStage = fitStage;
     fitStage();
