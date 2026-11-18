@@ -81,14 +81,27 @@ h1 .thin { font-weight: 400; color: var(--muted); font-size: 0.62em; letter-spac
 
 .credits { margin: 0; color: var(--muted); font-size: 0.8em; letter-spacing: 0.02em; white-space: nowrap; }
 
-/* ---------- two columns ---------- */
+/* ---------- panels: proposal order 1..4, the simulation last ---------- */
 
 main {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "p1 p2"
+    "p3 p4"
+    "sim sim";
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 0.75em;
   min-height: 0;
+  overflow: auto;
+  align-content: start;
 }
+
+#params { grid-area: p1; }
+#model  { grid-area: p2; }
+#graph  { grid-area: p3; }
+#fit    { grid-area: p4; }
+#sim    { grid-area: sim; min-height: 26em; }
 
 #sim, .panel {
   background: linear-gradient(180deg, var(--panel-2), var(--panel));
@@ -317,7 +330,7 @@ select {
 
 /* ---------- right column ---------- */
 
-#right { display: grid; grid-template-rows: auto auto minmax(200px, 1fr) auto; gap: 0.6em; min-height: 0; }
+#right { display: contents; }
 
 .panel { padding: 0.62em 0.8em; display: flex; flex-direction: column; gap: 0.35em; overflow: visible; }
 
@@ -458,10 +471,29 @@ select {
 
 .simhint { font-size: 0.66em; color: var(--muted); }
 
+/* the pit strip: the stop's inputs, printed next to the race that uses them */
+.pitstrip { display: flex; align-items: center; gap: 0.9em; flex-wrap: wrap;
+  font-size: 0.72em; color: var(--muted); }
+.pitstrip b { color: var(--text); font-variant-numeric: tabular-nums; }
+.pitstrip .pevent { margin-left: auto; color: var(--accent); font-weight: 600; }
+
+.jump { margin-left: auto; margin-right: 0.9em; font-size: 0.76em; color: var(--accent);
+  text-decoration: none; border: 1px solid currentColor; border-radius: 999px;
+  padding: 0.18em 0.7em; white-space: nowrap; }
+.jump:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+#tower .legend { margin: 0.15em 0 0; font-size: 0.6em; color: var(--muted); letter-spacing: 0.01em; }
+#tower .legend b { color: var(--text); }
+
+
 @media (max-width: 900px) {
-  main { grid-template-columns: 1fr; }
-  #right { grid-template-rows: none; }
+  main {
+    grid-template-columns: 1fr;
+    grid-template-areas: "p1" "p2" "p3" "p4" "sim";
+    grid-template-rows: none;
+  }
   #sim { min-height: 60vh; }
+  .jump { display: none; }
 }
 
 .timer { font-size: 0.7em; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
@@ -483,39 +515,18 @@ select {
       <span class="flag" aria-hidden="true"></span>
       <h1>When Do We Pit?<span class="thin"> A pit strategy simulator</span></h1>
     </div>
+    <a class="jump" href="#sim">▶ Run the simulation</a>
     <p class="credits">MATH 10 · Dela Cruz · Ngu · Sumadchat</p>
   </header>
 
   <main>
-    <!-- 1 · the race simulation (expected output, part 3) -->
-    <section id="sim" aria-label="Race simulation">
-      <div class="panelhead">
-        <h2>1 · Race simulation</h2>
-        <span class="tag">expected output, part 3</span>
-      </div>
-
-      <div id="simstage">
-        <div id="mapstage"></div>
-        <div id="hud"></div>
-      </div>
-
-      <div class="simrow">
-        <button id="play">▶ Play</button>
-        <button id="reset">Reset</button>
-        <span class="timer">race timer <b id="clock">0:00.000</b></span>
-        <span class="simhint">runs at 20× real time; the stop is compressed to one second</span>
-      </div>
-
-      <p id="simnote" class="note">Press Play. The race is simulated lap by lap from your numbers.</p>
-    </section>
 
     <aside id="right">
-
-      <!-- 2 · the inputs (expected output, part 1) -->
+      <!-- 1 · the inputs (proposal panel 1) -->
       <section id="params" class="panel" aria-label="Parameters">
         <div class="panelhead">
-          <h2>2 · Parameters</h2>
-          <span class="tag">expected output, part 1</span>
+          <h2>1 · Inputs</h2>
+          <span class="tag">the five inputs</span>
         </div>
 
         <div class="presets" id="presets">
@@ -555,20 +566,24 @@ select {
         </div>
       </section>
 
-      <!-- 3 · the model, with the reader's own numbers -->
+      <!-- 2 · the model (proposal panel 2) -->
       <section id="model" class="panel" aria-label="The model with your numbers">
-        <div class="panelhead"><h2>3 · The model, in your numbers</h2></div>
+        <div class="panelhead"><h2>2 · The model, in your numbers</h2><span class="tag">expected output, part 1</span></div>
         <div class="fm"><span class="lhs">lap n costs</span><code>t(n) = t₀ + k·n</code><span class="rhs" id="m-tn">—</span></div>
         <div class="fm"><span class="lhs">first stint</span><code>S(p) = p·t₀ + k·p(p−1)/2</code><span class="rhs" id="m-sp">—</span></div>
         <div class="fm"><span class="lhs">whole race</span><code>T(p) = S(p) + L + S(N−p)</code><span class="rhs" id="m-tp">—</span></div>
         <div class="fm"><span class="lhs">stop only if</span><code>L &lt; k·N²/4</code><span class="rhs" id="m-be">—</span></div>
         <p class="note" id="m-win">—</p>
+        <p class="note">Read it downwards: one lap, then a stretch of laps on one set of
+        tyres, then the whole race with the stop in it, then the rule for when a stop can pay at all.
+        The number on the right of each line is your own sliders run through it, so the formula and
+        the race can never tell different stories.</p>
       </section>
 
-      <!-- 4 · the curve (expected output, part 2) -->
+      <!-- 3 · the curve (proposal panel 3) -->
       <section id="graph" class="panel" aria-label="Total race time by pit lap">
         <div class="panelhead">
-          <h2>4 · Total race time by pit lap</h2>
+          <h2>3 · The curve: total race time by pit lap</h2>
           <span class="tag">expected output, part 2</span>
         </div>
         <svg id="chart" viewBox="0 0 560 300" role="img" aria-label="Total race time for every pit lap"></svg>
@@ -576,14 +591,19 @@ select {
         <div id="verdict" class="verdict"></div>
       </section>
 
-      <!-- 5 · the data fit: lap times in, t0 and k out -->
+      <!-- 4 · the data fit (proposal panel 4) -->
       <section id="fit" class="panel" aria-label="Fitting the model to lap times">
         <div class="panelhead">
-          <h2>5 · Fitting it to lap times</h2>
+          <h2>4 · The data fit: lap times in, t₀ and k out</h2>
           <span class="tag">stint data → t₀ and k</span>
         </div>
         <svg id="fitchart" viewBox="0 0 560 260" role="img" aria-label="Lap times with a least-squares fit"></svg>
         <div id="fit-readout" class="fitread"></div>
+        <p class="note">The dots are lap times from a stint. Least squares draws the straight
+        line that sits closest to them: where the line starts is <b>t₀</b> (a fresh-tyre lap), how
+        steep it is is <b>k</b> (seconds lost per lap), and <b>R²</b> says how much of the spread the
+        line explains, so 1.00 is a perfect fit. The button puts t₀ and k back into the sliders, so
+        panels 1 to 3 run on measured laps instead of guesses.</p>
         <div class="fitrow">
           <button id="fit-use">Use the fitted numbers</button>
           <span class="note" id="fit-note">Dataset: a simulated stint, labelled simulated everywhere.</span>
@@ -591,6 +611,35 @@ select {
       </section>
 
     </aside>
+
+    <!-- 1 · the race simulation (expected output, part 3) -->
+    <section id="sim" aria-label="Race simulation">
+      <div class="panelhead">
+        <h2>5 · Race simulation</h2>
+        <span class="tag">expected output, part 3</span>
+      </div>
+
+      <div id="simstage">
+        <div id="mapstage"></div>
+        <div id="hud"></div>
+      </div>
+
+      <div class="pitstrip">
+        <span>pit stop on lap <b id="ps-lap">27</b></span>
+        <span>costs <b id="ps-loss">20.0 s</b> (your slider)</span>
+        <span><b id="ps-n">53</b> laps in the race</span>
+        <span class="pevent" id="ps-event">no stop yet</span>
+      </div>
+
+      <div class="simrow">
+        <button id="play">▶ Play</button>
+        <button id="reset">Reset</button>
+        <span class="timer">race timer <b id="clock">0:00.000</b></span>
+        <span class="simhint">runs at 20× real time; the clock pays the pit loss, in the pits in under two seconds</span>
+      </div>
+
+      <p id="simnote" class="note">Press Play. The race is simulated lap by lap from your numbers.</p>
+    </section>
   </main>
 
   <footer id="bottom">
@@ -827,349 +876,777 @@ window.MONZA = {"name":"Autodromo Nazionale Monza","location":"Monza","length_m"
 </script>
 <script>
 /* When Do We Pit? — the race, as geometry and speed (no drawing).
+
  *
+
  * The page's maths lives in core.js: a lap costs t(n) = t0 + k*n and a stop
+
  * costs L. This file answers the question the simulation panel asks: given a
+
  * schedule, where exactly is the car, how fast is it going, and what is the
+
  * gap to the car ahead. Nothing here is a look-up table of made-up speeds.
+
  *
+
  * The speed profile is derived from the traced Monza geometry:
+
  *   - curvature gives the corner radius R at every metre of the lap
+
  *   - lateral grip caps the speed there:      v <= sqrt(a_lat * R)
+
  *   - acceleration and braking caps stretch between corners
+
  *   - a forward and a backward pass make both caps true at once
+
  *   - the whole profile is then scaled so one lap takes exactly t0, so the
+
  *     graph, the clock and the car can never disagree
+
  *
+
  * The result is that the car is flat out on the main straight, brakes into
+
  * Rettifilo, and is slowest in the second Lesmo, which is what Monza does.
+
  */
+
 (function (root) {
+
   "use strict";
 
+
+
   var LAP_METERS = 5793;   // official length, formula1.com (5.793 km)
+
   var A_LAT = 38;          // m/s^2 of lateral grip, about 3.9 g
+
   var A_ACC = 9.5;         // m/s^2 out of a corner
+
   var A_BRAKE = 42;        // m/s^2 on the brakes
+
   var V_CAP = 97;          // m/s cap before normalisation (349 km/h)
+
   var SAMPLES = 1400;      // geometry samples per lap, about 4 m apart
+
   var SECTOR_AT = [0, 0.30, 0.55, 1];  // S1, S2, S3 boundaries as lap fractions
+
   var BOX_IN = 0.34;       // of the pit-lane traverse: in, stopped, out
 
+
+
   /* ---------------------------------------------------------------- *
+
    * geometry
+
    * ---------------------------------------------------------------- */
+
+
 
   function catmullClosed(pts, per) {
+
     var out = [], n = pts.length;
+
     for (var i = 0; i < n; i++) {
+
       var p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+
       for (var j = 0; j < per; j++) {
+
         var t = j / per, t2 = t * t, t3 = t2 * t;
+
         out.push([
+
           0.5 * (2 * p1[0] + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+
           0.5 * (2 * p1[1] + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)
+
         ]);
+
       }
+
     }
+
     return out;
+
   }
+
+
+
+  /* the same spline, but a path that starts and ends where it says it does:
+
+   * the pit lane must not wrap back to its own start */
+
+  function catmullOpen(pts, per) {
+
+    var out = [], n = pts.length;
+
+    for (var i = 0; i < n - 1; i++) {
+
+      var p0 = pts[Math.max(i - 1, 0)], p1 = pts[i],
+
+          p2 = pts[i + 1], p3 = pts[Math.min(i + 2, n - 1)];
+
+      for (var j = 0; j < per; j++) {
+
+        var t = j / per, t2 = t * t, t3 = t2 * t;
+
+        out.push([
+
+          0.5 * (2 * p1[0] + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+
+          0.5 * (2 * p1[1] + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)
+
+        ]);
+
+      }
+
+    }
+
+    out.push([pts[n - 1][0], pts[n - 1][1]]);
+
+    return out;
+
+  }
+
+
 
   function cumulative(pts) {
+
     var cum = [0];
+
     for (var i = 1; i < pts.length; i++) {
+
       var dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1];
+
       cum.push(cum[i - 1] + Math.sqrt(dx * dx + dy * dy));
+
     }
+
     return cum;
+
   }
+
+
 
   /* one point every 1/n-th of the lap, evenly spaced by arc length */
+
   function resampleEven(pts, cum, n) {
+
     var total = cum[cum.length - 1], out = [], j = 0;
+
     for (var i = 0; i < n; i++) {
+
       var target = total * i / n;
+
       while (j < cum.length - 2 && cum[j + 1] < target) j++;
+
       var span = cum[j + 1] - cum[j];
+
       var f = span > 0 ? (target - cum[j]) / span : 0;
+
       out.push([
+
         pts[j][0] + (pts[j + 1][0] - pts[j][0]) * f,
+
         pts[j][1] + (pts[j + 1][1] - pts[j][1]) * f
+
       ]);
+
     }
+
     return out;
+
   }
+
+
 
   /* Menger curvature at each sample: the radius of the circle through three
+
    * consecutive points, sampled +/-16 m apart. That window is the one that
+
    * reproduces Monza's real numbers on this 124-point centreline: raw lap
+
    * 84.8 s against the model's 84.5 s default, slowest corner 70 km/h, top
+
    * speed 349 km/h. A wider window smooths the chicanes away, a narrower one
+
    * picks up digitising noise. */
+
   function radii(pts) {
+
     var n = pts.length, r = new Array(n), k, W = 4;
+
     for (k = 0; k < n; k++) {
+
       var a = pts[(k - W + n) % n], b = pts[k], c = pts[(k + W) % n];
+
       var ab = Math.hypot(b[0] - a[0], b[1] - a[1]);
+
       var bc = Math.hypot(c[0] - b[0], c[1] - b[1]);
+
       var ca = Math.hypot(a[0] - c[0], a[1] - c[1]);
+
       var area = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2;
+
       r[k] = area < 1e-9 ? 1e6 : (ab * bc * ca) / (4 * area);
+
     }
+
     for (k = 0; k < n; k++) r[k] = Math.max(10, r[k]);
+
     return r;
+
   }
 
+
+
   /* ---------------------------------------------------------------- *
+
    * the circuit
+
    * ---------------------------------------------------------------- */
+
+
 
   function buildCircuit(svgPoints, svgPit, options) {
+
     options = options || {};
+
     var per = options.per || 24;
+
     var dense = catmullClosed(svgPoints, per);
+
     var cum = cumulative(dense);
+
     var scale = LAP_METERS / cum[cum.length - 1];   // metres per svg unit
 
+
+
     var minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9, i;
+
     dense.forEach(function (p) {
+
       if (p[0] < minx) minx = p[0];
+
       if (p[0] > maxx) maxx = p[0];
+
       if (p[1] < miny) miny = p[1];
+
       if (p[1] > maxy) maxy = p[1];
+
     });
+
     var cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
 
+
+
     var even = resampleEven(dense, cum, SAMPLES);
+
     var xz = even.map(function (p) {
+
       return [(p[0] - cx) * scale, (p[1] - cy) * scale];
+
     });
+
     var ds = LAP_METERS / SAMPLES;
+
     var R = radii(xz);
 
+
+
     var v = new Array(SAMPLES);
+
     for (i = 0; i < SAMPLES; i++) v[i] = Math.min(V_CAP, Math.sqrt(A_LAT * R[i]));
+
     for (i = 0; i < SAMPLES; i++) {
+
       var nxt = (i + 1) % SAMPLES;
+
       var acc = Math.min(A_ACC, (V_CAP * V_CAP) / Math.max(v[i], 8));
+
       v[nxt] = Math.min(v[nxt], Math.sqrt(v[i] * v[i] + 2 * acc * ds));
+
     }
+
     for (i = SAMPLES - 1; i >= 0; i--) {
+
       var prv = (i - 1 + SAMPLES) % SAMPLES;
+
       v[prv] = Math.min(v[prv], Math.sqrt(v[i] * v[i] + 2 * A_BRAKE * ds));
+
     }
+
+
 
     var tc = [0];
+
     for (i = 1; i <= SAMPLES; i++) tc.push(tc[i - 1] + ds / Math.max(v[i - 1], 5));
+
     var rawLap = tc[SAMPLES];
+
     var u = tc.map(function (x) { return x / rawLap; });
 
-    var pitDense = catmullClosed(svgPit, 12);
+
+
+    var pitDense = catmullOpen(svgPit, 12);
+
     var pitCum = cumulative(pitDense);
+
     var pitLen = pitCum[pitCum.length - 1];
+
     var pitXZ = resampleEven(pitDense, pitCum, 120).map(function (p) {
+
       return [(p[0] - cx) * scale, (p[1] - cy) * scale];
+
     });
+
+    // the exit itself, so the lane ends exactly where it rejoins the track
+
+    pitXZ.push([(pitDense[pitDense.length - 1][0] - cx) * scale,
+
+                (pitDense[pitDense.length - 1][1] - cy) * scale]);
+
+
+
+    // where the lane leaves and rejoins the track, as a fraction of the lap
+
+    function nearestOnTrack(target) {
+
+      var bi = 0, bd = Infinity, q, dx, dz, dd;
+
+      for (q = 0; q < SAMPLES; q++) {
+
+        dx = xz[q][0] - target[0]; dz = xz[q][1] - target[1];
+
+        dd = dx * dx + dz * dz;
+
+        if (dd < bd) { bd = dd; bi = q; }
+
+      }
+
+      return { index: bi, u: u[bi], frac: bi / SAMPLES, metres: Math.sqrt(bd) };
+
+    }
+
+    var pitEntry = nearestOnTrack(pitXZ[0]);
+
+    var pitExit = nearestOnTrack(pitXZ[pitXZ.length - 1]);
+
+
 
     /* DRS zones follow from the geometry: sustained low-curvature stretches,
+
      * the two longest are the two straights Monza actually has. */
+
     var straights = [], run = null;
+
     for (i = 0; i < SAMPLES * 2; i++) {
+
       var idx = i % SAMPLES;
+
       if (R[idx] > 700) {
+
         if (!run) run = { start: idx, len: 0 };
+
         run.len += 1;
+
       } else if (run) {
+
         if (run.len * ds > 350 && run.len < SAMPLES) straights.push(run);
+
         run = null;
+
       }
+
     }
+
     straights.sort(function (a, b) { return b.len - a.len; });
+
     var drs = straights.slice(0, 3).map(function (s) {
+
       return { start: s.start / SAMPLES, end: Math.min(1, (s.start + s.len) / SAMPLES) };
+
     });
+
     // a straight that crosses the start line is cut in two by the wrap; join it
+
     for (i = 0; i < drs.length; i++) {
+
       if (drs[i].end > 0.995) {
+
         for (var j2 = 0; j2 < drs.length; j2++) {
+
           if (j2 !== i && drs[j2].start < 0.005) {
+
             drs[i].end = drs[j2].end;
+
             drs.splice(j2, 1);
+
             break;
+
           }
+
         }
+
       }
+
     }
+
     drs.sort(function (a, b) { return (b.end - b.start) - (a.end - a.start); });
+
     drs = drs.slice(0, 2);
 
+
+
     return {
+
       metres: LAP_METERS, samples: SAMPLES, ds: ds, scale: scale,
+
       radius: R, speed: v, timeNorm: u, rawLap: rawLap,
-      xz: xz, pit: pitXZ, pitLen: pitLen, drs: drs, sectors: SECTOR_AT
+
+      xz: xz, pit: pitXZ, pitLen: pitLen, drs: drs, sectors: SECTOR_AT,
+
+      pitEntry: pitEntry, pitExit: pitExit
+
     };
+
   }
 
+
+
   /* ---------------------------------------------------------------- *
+
    * schedules
+
    * ---------------------------------------------------------------- */
+
+
 
   function noStopSchedule(N, t0, k, L) {
+
     var lapTimes = [], cum = [0], cumWithPit = [0], i;
+
     for (i = 0; i < N; i++) {
+
       lapTimes.push(t0 + k * i);
+
       cum.push(cum[i] + lapTimes[i]);
+
       cumWithPit.push(cum[i + 1]);
+
     }
+
     return { N: N, t0: t0, k: k, L: L, pitAfterLap: 0, stopped: false,
+
              lapTimes: lapTimes, cum: cum, cumWithPit: cumWithPit, total: cum[N] };
+
   }
+
+
 
   /* race time at a given race distance, measured in laps */
+
   function timeAtDistance(s, D) {
+
     if (D >= s.N) return s.total;
+
     var i = Math.floor(D), f = D - i;
+
     return s.cumWithPit[i] + f * s.lapTimes[i];
+
   }
+
+
 
   /* ---------------------------------------------------------------- *
+
    * the race
+
    * ---------------------------------------------------------------- */
 
+
+
   function Race(M, circuit) {
+
     this.M = M;
+
     this.C = circuit;
+
     this.cars = [];
+
   }
 
+
+
   Race.prototype.setup = function (opts) {
+
     var M = this.M;
+
     var N = opts.N, t0 = opts.t0, k = opts.k, L = opts.L;
 
+
+
     this.cars = opts.cars.map(function (def) {
+
       var sched = def.pitLap >= N ? noStopSchedule(N, t0, k, L)
+
                                   : M.schedule(N, t0, k, L, def.pitLap);
+
       sched.stopped = def.pitLap < N;
+
       return {
+
         code: def.code, name: def.name, colour: def.colour, you: !!def.you,
+
         sched: sched, pitLap: def.pitLap
+
       };
+
     });
+
     this.N = N;
+
     this.best = { lap: Infinity, sectors: [Infinity, Infinity, Infinity] };
+
     return this;
+
   };
+
+
 
   /* inside one lap: where on the map, and how fast */
-  Race.prototype.onLap = function (car, lapIndex, tau) {
+
+  Race.prototype.onLap = function (car, lapIndex, tau, fStart) {
+
     var C = this.C;
+
     var lapTime = car.sched.lapTimes[lapIndex];
+
     var f = lapTime > 0 ? tau / lapTime : 0;
+
+    if (fStart) f = fStart + (1 - fStart) * f;   // rejoined at the pit exit
+
     if (f < 0) f = 0;
+
     if (f > 1) f = 1;
 
+
+
     var lo = 0, hi = C.samples;
+
     while (lo < hi - 1) {
+
       var mid = (lo + hi) >> 1;
+
       if (C.timeNorm[mid] <= f) lo = mid; else hi = mid;
+
     }
+
     var span = C.timeNorm[hi] - C.timeNorm[lo];
+
     var g = span > 0 ? (f - C.timeNorm[lo]) / span : 0;
+
     var i = lo % C.samples, j = (lo + 1) % C.samples;
+
     var x = C.xz[i][0] + (C.xz[j][0] - C.xz[i][0]) * g;
+
     var z = C.xz[i][1] + (C.xz[j][1] - C.xz[i][1]) * g;
 
+
+
     // a slower lap is the same shape driven slower, not a different route
+
     var scale = C.rawLap / lapTime;
+
     var kmh = C.speed[i] * scale * 3.6;
 
+
+
     var ahead = C.xz[(i + 1) % C.samples], back = C.xz[i];
+
     var heading = Math.atan2(ahead[0] - back[0], ahead[1] - back[1]);
 
+
+
     return { i: i, frac: (i + g) / C.samples, x: x, z: z, heading: heading, kmh: kmh };
+
   };
+
+
 
   /* everything the HUD and the 3D scene need at race time t */
+
   Race.prototype.frame = function (t) {
+
     var C = this.C, self = this;
+
     var out = [];
 
+
+
     this.cars.forEach(function (car) {
+
       var s = car.sched;
+
       var tc = Math.min(t, s.total);
+
       var pitStart = s.stopped ? s.cum[s.pitAfterLap] : Infinity;
+
       var pitEnd = pitStart + (s.stopped ? s.L : 0);
+
+      // the car turns into the lane at the pit-entry sample, which is a slice
+
+      // of the pit lap before its end; the lap itself still ends on the clock
+
+      var pitLapTime = s.stopped ? s.lapTimes[s.pitAfterLap - 1] : 0;
+
+      var pitGo = s.stopped ? pitStart - (1 - C.pitEntry.u) * pitLapTime : Infinity;
+
       var st = { code: car.code, name: car.name, colour: car.colour, you: car.you };
 
-      if (tc >= pitStart && tc < pitEnd) {
-        var f = (tc - pitStart) / s.L;
+
+
+      if (tc >= pitGo && tc < pitEnd) {
+
+        var f = (tc - pitGo) / (pitEnd - pitGo);
+
         var along = f < BOX_IN ? f / BOX_IN * BOX_IN
+
                   : f < 0.72 ? BOX_IN
+
                   : BOX_IN + ((f - 0.72) / 0.28) * (1 - BOX_IN);
+
         var kk = Math.min(0.999, Math.max(0, along)) * (C.pit.length - 2);
+
         var p0 = C.pit[Math.floor(kk)], p1 = C.pit[Math.floor(kk) + 1];
+
         st.phase = "pit";
+
         st.lap = s.pitAfterLap;
+
         st.distance = s.pitAfterLap;
+
         st.x = p0[0] + (p1[0] - p0[0]) * (kk % 1);
+
         st.z = p0[1] + (p1[1] - p0[1]) * (kk % 1);
+
         st.heading = Math.atan2(p1[0] - p0[0], p1[1] - p0[1]);
+
         st.kmh = (f < BOX_IN || f > 0.72) ? 60 : 0;
+
         st.frac = 0;
+
         st.sector = 0;
+
         st.lapTime = null;
+
       } else {
+
         var i = 0, hi = s.N;
+
         while (i < hi - 1) { var m = (i + hi) >> 1; if (s.cumWithPit[m] <= tc) i = m; else hi = m; }
+
         var tau = tc - s.cumWithPit[i];
-        var on = self.onLap(car, i, tau);
+
+        var fStart = (s.stopped && i === s.pitAfterLap) ? C.pitExit.u : 0;
+
+        var on = self.onLap(car, i, tau, fStart);
+
         st.phase = "lap";
+
         st.lap = i;
+
         st.distance = i + on.frac;
+
         st.x = on.x; st.z = on.z; st.heading = on.heading; st.kmh = on.kmh;
+
         st.frac = on.frac;
+
         st.sector = on.frac < C.sectors[1] ? 0 : on.frac < C.sectors[2] ? 1 : 2;
+
         st.lapTime = s.lapTimes[i];
+
       }
 
+
+
       st.lapsDone = st.distance;
+
       st.lapNo = Math.min(s.N, st.lap + 1);
+
       out.push(st);
+
     });
+
+
 
     out.sort(function (a, b) { return b.distance - a.distance; });
+
     var leaderD = out[0].distance;
+
     var byCode = {};
+
     this.cars.forEach(function (c) { byCode[c.code] = c; });
 
+
+
     out.forEach(function (st, pos) {
+
       var car = byCode[st.code], s = car.sched;
+
       var now = Math.min(t, s.total);
+
       st.position = pos + 1;
+
       st.gapToLeader = pos === 0 ? 0 : timeAtDistance(s, leaderD) - now;
+
       st.interval = pos === 0 ? 0 : timeAtDistance(s, out[pos - 1].distance) - now;
+
       st.lastLap = st.lap > 0 ? s.lapTimes[st.lap - 1] : null;
+
       // before the first lap is finished there is no best lap and the tyre is new
+
       var done = s.lapTimes.slice(0, Math.min(st.lap, s.N));
+
       st.bestLap = done.length ? done.reduce(function (a, b) { return Math.min(a, b); }) : null;
+
       st.tyreAge = s.stopped ? Math.max(0, st.lap - car.pitLap) : st.lap;
+
       st.total = s.total;
+
     });
 
+
+
     return { cars: out, t: t, drs: C.drs, best: this.best };
+
   };
+
+
 
   var API = {
+
     LAP_METERS: LAP_METERS, A_LAT: A_LAT, A_ACC: A_ACC, A_BRAKE: A_BRAKE,
+
     BOX_IN: BOX_IN, SECTOR_AT: SECTOR_AT,
-    buildCircuit: buildCircuit, catmullClosed: catmullClosed, cumulative: cumulative,
+
+    buildCircuit: buildCircuit, catmullClosed: catmullClosed, catmullOpen: catmullOpen, cumulative: cumulative,
+
     resampleEven: resampleEven, radii: radii, noStopSchedule: noStopSchedule,
+
     timeAtDistance: timeAtDistance, Race: Race
+
   };
 
+
+
   if (typeof module === "object" && module.exports) module.exports = API;
+
   root.RaceModel = API;
+
 })(typeof window !== "undefined" ? window : globalThis);
+
 
 </script>
 <script>
@@ -1232,7 +1709,9 @@ window.HUD = (function () {
         '<div><b>LAST</b><i id="i-last">—</i></div>' +
         '<div><b>BEST</b><i id="i-best">—</i></div>' +
         '<div><b>TYRE</b><i id="i-tyre">—</i></div>' +
-      '</div>';
+      '</div>' +
+      '<p class="legend"><b>LAP</b> laps done · <b>LAST</b> your last lap · ' +
+      '<b>BEST</b> your fastest lap · <b>TYRE</b> laps on this set</p>';
 
     els = {
       tower: document.getElementById("tower"),
@@ -1629,6 +2108,10 @@ window.TrackMap = (function () {
     $("v-L").textContent = S.L.toFixed(1) + " s";
     $("v-n").textContent = S.N + " laps";
     $("v-p").textContent = S.pit;
+    var pl = $("ps-lap"), lo = $("ps-loss"), pn = $("ps-n");
+    if (pl) pl.textContent = S.pit;
+    if (lo) lo.textContent = S.L.toFixed(1) + " s";
+    if (pn) pn.textContent = S.N;
   }
 
   /* ------------------------------------------------------------------ *
@@ -1828,6 +2311,9 @@ window.TrackMap = (function () {
       S.raceTime += dt * S.speed;
       if (!S.stopped && S.raceTime >= pitAt) {
         S.raceTime = pitAt; S.stopped = true; S.phase = "pit"; S.pitClock = 0;
+        var pe2 = $("ps-event");
+        if (pe2) pe2.textContent = "stopped on lap " + S.pit + " at " + fmt(pitAt) +
+          " · pays " + L.toFixed(1) + " s";
       }
     } else {
       S.pitClock += dt;
@@ -1895,13 +2381,16 @@ window.TrackMap = (function () {
     lastPhase = null;
     HUD.reset();
     resetRace();
+    var pe = $("ps-event");
+    if (pe) pe.textContent = "no stop yet";
     $("play").textContent = "▶ Play";
     $("play").disabled = false;
     if (!keepNote) {
       var win = S.win;
       $("simnote").innerHTML = 'Press <b>Play</b>. The car drives the circuit at <b>' + S.speed +
-        '×</b> real time and stands in the pit box for ' + PIT_PAUSE.toFixed(0) +
-        ' second, the 20-second stop compressed. Best lap here: <b>' + win.best + '</b>.';
+        '×</b> real time and dives into the pit lane on lap <b>' + S.pit +
+        '</b>, where the clock pays your <b>' + L.toFixed(1) + '-second</b> pit loss. ' +
+        'Best lap here: <b>' + win.best + '</b>.';
     }
     paint();
   }
