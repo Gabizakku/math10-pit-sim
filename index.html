@@ -588,7 +588,7 @@ main {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: auto;
+  height: 100%;
   overflow: visible;
 }
 
@@ -605,7 +605,7 @@ main {
   min-width: 0;
 }
 
-#simstage { flex: 0 0 auto; height: clamp(380px, 64vh, 720px); position: relative; }
+#simstage { flex: 1 1 auto; height: auto; min-height: clamp(380px, 58vh, 660px); position: relative; }
 
 .panelhead h2 { font-size: 1.05em; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
 .panelhead h3 { font-size: 1em; letter-spacing: 0.03em; margin: 0; font-weight: 600; }
@@ -628,7 +628,8 @@ main {
 .fm code { font-size: 1em; }
 .pitstrip { font-size: 0.95em; }
 .pitstrip b { font-size: 1.05em; }
-.note, .verdict, .fitread { font-size: 0.9em; line-height: 1.5; }
+.note, .verdict { font-size: 0.9em; line-height: 1.5; }
+.fitread { font-size: 0.95em; line-height: 1.5; }
 #m-win { font-size: 0.9em; }
 .timer { font-size: 0.95em; }
 .timer b { font-size: 1.15em; }
@@ -699,6 +700,48 @@ main {
   white-space: normal; overflow: visible; text-overflow: clip;
   text-align: right; font-variant-numeric: tabular-nums;
 }
+
+/* The tracker's overlays get a glass panel, so speed, sectors and the lap ruler
+   read as instruments on top of the map instead of floating text. */
+#tel, #sectors, #ruler {
+  background: rgba(6, 10, 18, 0.72);
+  border: 1px solid rgba(120, 150, 200, 0.18);
+  border-radius: 0.35em;
+  padding: 0.35em 0.55em;
+  backdrop-filter: blur(2px);
+}
+#ruler { padding: 0.3em 0.5em; }
+
+/* ---- instrument and form polish (2026-11-18, second visual pass) ---- */
+
+/* the slider value lines up on a right edge instead of trailing the question */
+.slider label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7em;
+}
+.slider .val { white-space: nowrap; }
+.slider .sub { margin-top: 0.05em; }
+
+/* three presets of equal width, so the row reads as a control group */
+.presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.45em; }
+.presets button { width: 100%; }
+
+/* heading and its tag share a baseline */
+.panelhead { align-items: baseline; }
+
+/* the timing tower: the legend wraps instead of running off the panel */
+#tower { overflow: visible; max-width: calc(100% - 1em); }
+#tower .legend { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+
+/* speed cluster: the unit sits on the number's baseline */
+#tel { align-items: baseline; }
+#tel .speed { display: flex; align-items: baseline; }
+
+/* formula readout breathes, and the result never touches the panel edge */
+#model .fm { padding: 0.34em 0; }
+#model .fm .rhs { padding-right: 0.1em; }
 
 </style>
 </head>
@@ -836,7 +879,7 @@ main {
             <h3>Real lap times, turned into numbers</h3>
             <span class="tag">stint data → t₀ and k</span>
           </div>
-          <svg id="fitchart" viewBox="0 0 560 240" role="img" aria-label="Lap times with a least-squares fit"></svg>
+          <svg id="fitchart" viewBox="0 0 560 260" role="img" aria-label="Lap times with a least-squares fit"></svg>
           <div id="fit-readout" class="fitread"></div>
           <div class="fitrow">
             <button id="fit-use">Use the fitted numbers</button>
@@ -2035,12 +2078,20 @@ window.HUD = (function () {
  * crisp at any size, no camera, no fog. It draws the real Monza centreline,
  * marks the three sector lines and the two DRS zones, shows the pit lane and
  * the start/finish line, and puts one marker where the model says the car is.
+ *
+ * Sizes are chosen in SCREEN pixels and converted to map units through u(),
+ * so the road, the lane and the labels read at the size a viewer expects
+ * whatever the panel measures. Text is counter-rotated (the whole map is a
+ * quarter turn) so every label reads left to right.
  */
 window.TrackMap = (function () {
   "use strict";
 
   var NS = "http://www.w3.org/2000/svg";
-  var root = null, carEl = null, carDot = null, circ = null, view = null;
+  var root = null, carEl = null, circ = null, view = null;
+  var U = 1;                 // map units per screen pixel, set in init
+
+  function u(screenPixels) { return screenPixels * U; }
 
   function el(tag, attrs, text) {
     var n = document.createElementNS(NS, tag);
@@ -2062,6 +2113,23 @@ window.TrackMap = (function () {
     return d + (close ? " Z" : "");
   }
 
+  /* Unit normals for an open polyline, one per point. */
+  function normals(pts) {
+    var out = [];
+    for (var i = 0; i < pts.length; i++) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      var dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+      out.push([-dy / L, dx / L]);
+    }
+    return out;
+  }
+
+  function shift(pts, nrm, d) {
+    return pts.map(function (p, i) {
+      return [p[0] + nrm[i][0] * d, p[1] + nrm[i][1] * d];
+    });
+  }
+
   function init(host, circuit) {
     circ = circuit;
     var pts = circuit.xz;
@@ -2078,121 +2146,205 @@ window.TrackMap = (function () {
     var w = maxx - minx + pad * 2, h = maxz - minz + pad * 2;
     view = { x: minx - pad, y: minz - pad, w: w, h: h };
 
+    /* The panel is wider than the map is tall, so the map is drawn a quarter
+     * turn inside a rotated group. The viewBox is the rotated box: w and h
+     * swap, and the drawing is shifted so the rotated content fills it. */
+    var hostW = host.clientWidth || 800;
+    U = h / Math.max(240, hostW);        // map units per screen pixel
+
     var svg = el("svg", {
-      viewBox: view.x.toFixed(1) + " " + view.y.toFixed(1) + " " + w.toFixed(1) + " " + h.toFixed(1),
+      viewBox: "0 0 " + h.toFixed(1) + " " + w.toFixed(1),
       preserveAspectRatio: "xMidYMid meet",
       role: "img",
       "aria-label": "Driver tracker: the Monza circuit with one car on it, the pit lane, and sector markers."
     });
     svg.setAttribute("class", "trackmap-svg");
 
-    /* Monza is 1.4 km wide and 2.3 km tall. A panel is wider than it is tall,
-     * so the map is rotated a quarter turn: the same drawing, filling the box. */
     var cxv = view.x + view.w / 2, cyv = view.y + view.h / 2;
-    var rot = el("g", { transform: "rotate(-90 " + cxv.toFixed(1) + " " + cyv.toFixed(1) + ")" });
+    var rot = el("g", {});
+    /* rotate(-90) about the circuit centre, then translate the circuit centre
+     * to the centre of the rotated viewBox. */
+    rot.setAttribute("transform",
+      "translate(" + (h / 2).toFixed(1) + " " + (w / 2).toFixed(1) + ") " +
+      "rotate(-90) translate(" + (-cxv).toFixed(1) + " " + (-cyv).toFixed(1) + ")");
     svg.appendChild(rot);
-    svg.setAttribute("viewBox",
-      (cxv - view.h / 2).toFixed(1) + " " + (cyv - view.w / 2).toFixed(1) + " " +
-      view.h.toFixed(1) + " " + view.w.toFixed(1));
 
-    // a broadcast circuit: a soft halo, then one bright line, nothing in the middle
-    rot.appendChild(el("path", { d: smoothPath(pts, true), fill: "none",
-      stroke: "rgba(96,132,190,0.16)", "stroke-width": 40, "stroke-linejoin": "round", "stroke-linecap": "round" }));
-    rot.appendChild(el("path", { d: smoothPath(pts, true), fill: "none",
-      stroke: "#dbe4f2", "stroke-width": 13, "stroke-linejoin": "round", "stroke-linecap": "round" }));
-    rot.appendChild(el("path", { d: smoothPath(pts, true), fill: "none",
-      stroke: "#0d1421", "stroke-width": 3.4, "stroke-linejoin": "round", opacity: 0.55 }));
-
-    // sector bands: the three thirds, tinted so the strip below has a home
-    var sectorColours = ["rgba(199,146,255,0.55)", "rgba(47,220,160,0.50)", "rgba(255,200,87,0.50)"];
-    var bounds = circuit.sectors, n = pts.length;
-    for (var s = 0; s < 3; s++) {
-      var a = Math.floor(bounds[s] * n), b = Math.floor(bounds[s + 1] * n);
-      var seg = [];
-      for (var i = a; i <= b; i++) seg.push(pts[i % n]);
-      seg.push([pts[b % n][0], pts[b % n][1]]);
-      rot.appendChild(el("path", { d: smoothPath(seg, false), fill: "none",
-        stroke: sectorColours[s], "stroke-width": 4.4, "stroke-linecap": "round", opacity: 1 }));
+    /* A label that reads left to right despite the quarter turn. */
+    function label(x, y, text, cls, anchor) {
+      var t = el("text", { x: x.toFixed(1), y: y.toFixed(1), "class": cls || "map-label" }, text);
+      t.setAttribute("text-anchor", anchor || "middle");
+      t.style.fontSize = u(13).toFixed(1) + "px";
+      var back = el("g", {});
+      back.setAttribute("transform", "rotate(90 " + x.toFixed(1) + " " + y.toFixed(1) + ")");
+      back.appendChild(t);
+      return back;
     }
 
-    // DRS zones: a thin dashed band on the straights
-    circuit.drs.forEach(function (z) {
-      var seg = [], from = z.start * n, to = z.end * n;
-      if (to < from) { from = z.start * n; to = n; }
-      for (var i = Math.floor(from); i <= Math.ceil(to); i++) seg.push(pts[i % n]);
-      if (seg.length > 1) {
-        rot.appendChild(el("path", { d: smoothPath(seg, false), fill: "none",
-          stroke: "rgba(90,169,255,0.9)", "stroke-width": 5, "stroke-dasharray": "5 10",
-          "stroke-linecap": "round" }));
+    /* ---- the circuit ---- */
+    rot.appendChild(el("path", { d: smoothPath(pts, true), fill: "none",
+      stroke: "rgba(96,132,190,0.10)", "stroke-width": u(46),
+      "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    rot.appendChild(el("path", { d: smoothPath(pts, true), fill: "none",
+      stroke: "#e8eefb", "stroke-width": u(21),
+      "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    rot.appendChild(el("path", { d: smoothPath(pts, true), fill: "none",
+      stroke: "#16202e", "stroke-width": u(15),
+      "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+    /* sector thirds, tinted on the tarmac so the sector strip below has a home */
+    var sectorColours = ["#c792ff", "#2fdca0", "#ffc857"];
+    var bounds = circuit.sectors, n = pts.length;
+    for (var s = 0; s < 3; s++) {
+      var from = Math.floor(bounds[s] * n), to = Math.floor(bounds[s + 1] * n);
+      var seg = [];
+      for (var i = from; i <= to; i++) seg.push(pts[i % n]);
+      rot.appendChild(el("path", { d: smoothPath(seg, false), fill: "none",
+        stroke: sectorColours[s], "stroke-width": u(14), opacity: 0.17,
+        "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    }
+
+    /* the two DRS zones, drawn as dashes on the tarmac */
+    (circuit.drs || []).forEach(function (d) {
+      var a = Math.floor(d.start * n), b = Math.floor(d.end * n), seg = [];
+      if (b > a) {
+        for (var i = a; i <= b; i++) seg.push(pts[i % n]);
+      } else {
+        for (var j = a; j < n; j++) seg.push(pts[j]);
+        for (var k = 0; k <= b; k++) seg.push(pts[k]);
       }
+      rot.appendChild(el("path", { d: smoothPath(seg, false), fill: "none",
+        stroke: "#5aa9ff", "stroke-width": u(3.4), opacity: 0.85,
+        "stroke-dasharray": (u(9).toFixed(1) + " " + u(7).toFixed(1)),
+        "stroke-linecap": "round" }));
     });
 
-    /* Pit lane: a single lane running beside the opening straight. The raw
-     * survey line for the real pit lane zig-zags at this scale and reads as a
-     * mistake, so the map draws the lane the way a broadcast map does, one
-     * clean parallel line with one label. */
-    (function () {
-      var lane = [], lim = Math.floor(n * 0.11);
-      for (var i = 0; i <= lim; i++) {
-        var a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
-        var ddx = b[0] - a[0], ddz = b[1] - a[1], dl = Math.hypot(ddx, ddz) || 1;
-        lane.push([pts[i][0] + (-ddz / dl) * 20, pts[i][1] + (ddx / dl) * 20]);
-      }
-      rot.appendChild(el("path", { d: smoothPath(lane, false), fill: "none",
-        stroke: "#7c8ca6", "stroke-width": 8, "stroke-linecap": "round", "stroke-linejoin": "round" }));
-      var mm = lane[Math.floor(lane.length * 0.45)];
-      // keep the label inside the panel: choose the side of the lane with room, then clamp
-      // to the view box so it can never run off the edge and clip (it did, over the straight)
-      var tw = 250, margin = 16;
-      var roomRight = (view.x + view.w) - mm[0], roomLeft = mm[0] - view.x;
-      var anchor = roomRight > roomLeft ? "start" : "end";
-      var lx = anchor === "start" ? mm[0] + 46 : mm[0] - 46;
-      if (anchor === "start" && lx + tw > view.x + view.w - margin) {
-        anchor = "end"; lx = mm[0] - 46;
-      } else if (anchor === "end" && lx - tw < view.x + margin) {
-        anchor = "start"; lx = mm[0] + 46;
-      }
-      lx = Math.max(view.x + margin, Math.min(lx, view.x + view.w - margin));
-      var ly = Math.max(view.y + margin + 44, Math.min(mm[1] + 14, view.y + view.h - margin));
-      rot.appendChild(el("text", { x: lx, y: ly, class: "map-label",
-        "text-anchor": anchor }, "PIT LANE"));
-    })();
+    /* ---- the pit lane, drawn where the car actually drives it ---- */
+    var pit = circuit.pit, pn = normals(pit);
+    var mid = Math.floor(pit.length / 2);
 
-    // start / finish: a small chequered bar across the road
+    /* which side is the track? the garages go on the far side, the wall on the
+     * track side */
+    var best = 1e18, near = pts[0];
+    for (var q = 0; q < pts.length; q += 4) {
+      var dd = Math.pow(pts[q][0] - pit[mid][0], 2) + Math.pow(pts[q][1] - pit[mid][1], 2);
+      if (dd < best) { best = dd; near = pts[q]; }
+    }
+    var side = (near[0] - pit[mid][0]) * pn[mid][0] + (near[1] - pit[mid][1]) * pn[mid][1];
+    side = side >= 0 ? 1 : -1;          // +1 means the track is on the +normal side
+    var toTrack = side, toGarage = -side;
+
+    /* entry and exit tapers: short joins from the road to the lane, so the lane
+     * reads as an opening, not a floating line */
+    function join(from, to) {
+      rot.appendChild(el("path", { d: smoothPath([from, to], false), fill: "none",
+        stroke: "#e8eefb", "stroke-width": u(17), "stroke-linecap": "round" }));
+      rot.appendChild(el("path", { d: smoothPath([from, to], false), fill: "none",
+        stroke: "#1b2434", "stroke-width": u(13), "stroke-linecap": "round" }));
+    }
+    join(pts[circuit.pitEntry.index % pts.length], pit[0]);
+    join(pts[circuit.pitExit.index % pts.length], pit[pit.length - 1]);
+
+    rot.appendChild(el("path", { d: smoothPath(pit, false), fill: "none",
+      stroke: "#cfd9ea", "stroke-width": u(17),
+      "stroke-linejoin": "round", "stroke-linecap": "butt" }));
+    rot.appendChild(el("path", { d: smoothPath(pit, false), fill: "none",
+      stroke: "#1b2434", "stroke-width": u(13),
+      "stroke-linejoin": "round", "stroke-linecap": "butt" }));
+
+    /* pit wall, on the track side of the lane */
+    var wall = shift(pit, pn, toTrack * u(14));
+    rot.appendChild(el("path", { d: smoothPath(wall, false), fill: "none",
+      stroke: "#9aa7bd", "stroke-width": u(2), opacity: 0.95,
+      "stroke-linecap": "round" }));
+
+    /* garages: bays along the far side, so the lane reads as a pit lane and not
+     * as a second road */
+    for (var g = 4; g + 4 < pit.length; g += 8) {
+      var a = pit[g], b = pit[Math.min(pit.length - 1, g + 4)];
+      var mxp = (a[0] + b[0]) / 2, myp = (a[1] + b[1]) / 2;
+      var ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+      var gx = mxp + pn[g][0] * toGarage * u(20);
+      var gy = myp + pn[g][1] * toGarage * u(20);
+      var box = el("rect", {
+        x: (-u(14)).toFixed(1), y: (-u(5)).toFixed(1),
+        width: u(28).toFixed(1), height: u(10).toFixed(1), rx: u(2).toFixed(1),
+        fill: "#2b3648", stroke: "#5b6a83", "stroke-width": u(1.2)
+      });
+      box.setAttribute("transform",
+        "translate(" + gx.toFixed(1) + "," + gy.toFixed(1) + ") rotate(" + ang.toFixed(1) + ")");
+      rot.appendChild(box);
+    }
+
+    /* the lane label, horizontal, on the garage side so it never sits on the
+     * racing line */
+    var lx = pit[mid][0] + pn[mid][0] * toGarage * u(56);
+    var ly = pit[mid][1] + pn[mid][1] * toGarage * u(56);
+    rot.appendChild(label(lx, ly, "PIT LANE", "map-label map-label-pit"));
+
+    /* ---- start / finish ---- */
     var p0 = pts[0], p1 = pts[1];
     var dx = p1[0] - p0[0], dz = p1[1] - p0[1], L = Math.hypot(dx, dz) || 1;
     var nx = -dz / L, nz = dx / L;
-    for (var c = 0; c < 10; c++) {
-      var t0 = -7 + c * 1.4, t1 = t0 + 1.4;
+    for (var c = 0; c < 9; c++) {
+      var t0 = -u(9) + c * u(2), t1 = t0 + u(2);
       rot.appendChild(el("line", {
         x1: p0[0] + nx * t0, y1: p0[1] + nz * t0,
         x2: p0[0] + nx * t1, y2: p0[1] + nz * t1,
-        stroke: c % 2 ? "#ffffff" : "#0d1421", "stroke-width": 4
+        stroke: c % 2 ? "#ffffff" : "#0d1421", "stroke-width": u(4)
       }));
     }
-    rot.appendChild(el("text", { x: p0[0] + nx * 30, y: p0[1] + nz * 30, class: "map-label" }, "S/F"));
+    /* The label goes on the side of the start line that faces AWAY from the pit
+     * lane: the lane runs beside the main straight, so the naive outward normal
+     * drops the word on top of the pit exit. */
+    function nearestPit(px, py) {
+      var best = 1e18;
+      for (var pi = 0; pi < pit.length; pi += 2) {
+        var d2 = Math.pow(pit[pi][0] - px, 2) + Math.pow(pit[pi][1] - py, 2);
+        if (d2 < best) best = d2;
+      }
+      return best;
+    }
+    var sgn = nearestPit(p0[0] + nx * 30, p0[1] + nz * 30) >
+              nearestPit(p0[0] - nx * 30, p0[1] - nz * 30) ? 1 : -1;
+    var ox = nx * sgn, oy = nz * sgn;
+    rot.appendChild(el("line", {
+      x1: p0[0] + ox * u(14), y1: p0[1] + oy * u(14),
+      x2: p0[0] + ox * u(26), y2: p0[1] + oy * u(26),
+      stroke: "#9aa7bd", "stroke-width": u(1.4)
+    }));
+    rot.appendChild(label(p0[0] + ox * u(40), p0[1] + oy * u(40), "START", "map-label"));
 
-    // sector ticks at the boundaries
+    /* ---- sector markers ---- */
     for (var k = 1; k < 3; k++) {
-      var q = pts[Math.floor(circuit.sectors[k] * n) % n];
-      rot.appendChild(el("circle", { cx: q[0], cy: q[1], r: 7, fill: "#0d1421",
-        stroke: sectorColours[k - 1], "stroke-width": 3 }));
-      rot.appendChild(el("text", { x: q[0] + 22, y: q[1] - 18, class: "map-label" }, "S" + (k + 1)));
+      var qi = Math.floor(bounds[k] * n) % n, q2 = pts[qi];
+      /* a gate line across the road, so the label marks a real boundary */
+      var qa = pts[(qi + n - 2) % n], qb = pts[(qi + 2) % n];
+      var tdx = qb[0] - qa[0], tdy = qb[1] - qa[1], tl = Math.hypot(tdx, tdy) || 1;
+      var gnx = -tdy / tl, gny = tdx / tl;
+      rot.appendChild(el("line", {
+        x1: q2[0] - gnx * u(11), y1: q2[1] - gny * u(11),
+        x2: q2[0] + gnx * u(11), y2: q2[1] + gny * u(11),
+        stroke: sectorColours[k], "stroke-width": u(3), opacity: 0.95
+      }));
+      rot.appendChild(label(q2[0] + gnx * u(24), q2[1] + gny * u(24), "S" + (k + 1), "map-label"));
     }
 
-    // the car: a top-down silhouette, nose along +X so the rotation is read straight off the vector
-    carEl = el("g", { class: "map-car" });
-    carEl.appendChild(el("circle", { cx: 0, cy: 0, r: 74, fill: "rgba(255,59,48,0.10)" }));
-    [-26, 12].forEach(function (y0) {
-      carEl.appendChild(el("rect", { x: 18, y: y0, width: 16, height: 10, rx: 3, fill: "#0b0f16" }));
-      carEl.appendChild(el("rect", { x: -30, y: y0, width: 16, height: 10, rx: 3, fill: "#0b0f16" }));
+    /* ---- the car: a small top-down silhouette, nose along +X ---- */
+    carEl = el("g", { "class": "map-car" });
+    var k2 = u(19) / 90;                          // about 30 px nose to tail
+    var sym = el("g", { transform: "scale(" + k2.toFixed(4) + ")" });
+    sym.appendChild(el("circle", { cx: 0, cy: 0, r: 74, fill: "rgba(255,59,48,0.10)" }));
+    [-24, 14].forEach(function (y0) {
+      sym.appendChild(el("rect", { x: 16, y: y0, width: 16, height: 9, rx: 3, fill: "#0b0f16" }));
+      sym.appendChild(el("rect", { x: -32, y: y0, width: 16, height: 9, rx: 3, fill: "#0b0f16" }));
     });
-    carEl.appendChild(el("rect", { x: 32, y: -26, width: 9, height: 52, rx: 3, fill: "#f2c200" }));  // front wing
-    carEl.appendChild(el("rect", { x: -44, y: -22, width: 9, height: 44, rx: 3, fill: "#f2c200" })); // rear wing
-    carEl.appendChild(el("rect", { x: -36, y: -12, width: 64, height: 24, rx: 10,
-      fill: "#c8102e", stroke: "#ffffff", "stroke-width": 3 }));                                   // body
-    carEl.appendChild(el("path", { d: "M 26 -8 L 46 0 L 26 8 Z", fill: "#f2c200" }));              // nose
-    carEl.appendChild(el("circle", { cx: -2, cy: 0, r: 5, fill: "#0b0f16" }));                      // cockpit
+    sym.appendChild(el("rect", { x: 30, y: -24, width: 8, height: 48, rx: 3, fill: "#f2c200" }));
+    sym.appendChild(el("rect", { x: -40, y: -20, width: 8, height: 40, rx: 3, fill: "#f2c200" }));
+    sym.appendChild(el("rect", { x: -34, y: -11, width: 60, height: 22, rx: 9,
+      fill: "#c8102e", stroke: "#ffffff", "stroke-width": 2.5 }));
+    sym.appendChild(el("path", { d: "M 24 -7 L 44 0 L 24 7 Z", fill: "#f2c200" }));
+    sym.appendChild(el("circle", { cx: -3, cy: 0, r: 4.5, fill: "#0b0f16" }));
+    carEl.appendChild(sym);
     rot.appendChild(carEl);
 
     host.appendChild(svg);
@@ -2203,13 +2355,12 @@ window.TrackMap = (function () {
     var me = frame.cars.filter(function (c) { return c.you; })[0] || frame.cars[0];
     if (!me || !carEl) return;
     /* The map group is rotated a quarter turn, so the model's forward vector
-     * (dx, dz) lands on the screen as (dz, -dx). The symbol's nose is +X, and
-     * SVG rotate is clockwise positive, so the angle is taken straight from
-     * that vector: atan2(-dx, dz). */
+     * (dx, dz) lands on the screen as (dz, -dx); SVG rotate is clockwise, so
+     * the symbol's heading angle is atan2(-dx, dz). */
     var dx = Math.sin(me.heading), dz = Math.cos(me.heading);
     var deg = Math.atan2(-dx, dz) * 180 / Math.PI;
     carEl.setAttribute("transform", "translate(" + me.x.toFixed(1) + "," + me.z.toFixed(1) + ") rotate(" + deg.toFixed(1) + ")");
-    carEl.style.opacity = me.phase === "pit" ? 0.55 : 1;
+    carEl.style.opacity = me.phase === "pit" ? 0.85 : 1;
   }
 
   return { init: init, update: update };
@@ -2347,7 +2498,7 @@ window.TrackMap = (function () {
    * part 2 — the graph
    * ------------------------------------------------------------------ */
 
-  var CH = { w: 560, h: 300, l: 54, r: 18, t: 16, b: 34 };
+  var CH = { w: 560, h: 300, l: 76, r: 18, t: 32, b: 52 };
 
   function ns(tag, attrs, text) {
     var e = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -2400,8 +2551,8 @@ window.TrackMap = (function () {
     // axes
     svg.appendChild(ns("line", { x1: plot.x, y1: plot.y, x2: plot.x, y2: plot.y + plot.h, "class": "axis" }));
     svg.appendChild(ns("line", { x1: plot.x, y1: plot.y + plot.h, x2: plot.x + plot.w, y2: plot.y + plot.h, "class": "axis" }));
-    svg.appendChild(ns("text", { x: plot.x + plot.w / 2, y: CH.h - 4, "text-anchor": "middle", "class": "axis-title" }, "PIT LAP  p"));
-    svg.appendChild(ns("text", { x: 12, y: plot.y + plot.h / 2, "text-anchor": "middle", "class": "axis-title", transform: "rotate(-90 12 " + (plot.y + plot.h / 2) + ")" }, "TOTAL RACE TIME  T(p)"));
+    svg.appendChild(ns("text", { x: plot.x + plot.w, y: CH.h - 6, "text-anchor": "end", "class": "axis-title" }, "PIT LAP  p"));
+    svg.appendChild(ns("text", { x: plot.x, y: CH.t - 9, "text-anchor": "start", "class": "axis-title" }, "TOTAL RACE TIME  T(p)"));
 
     // pit window band
     var xLo = X(win.lo) - (X(win.lo + 1) - X(win.lo)) / 2;
@@ -2409,14 +2560,21 @@ window.TrackMap = (function () {
     svg.appendChild(ns("rect", { x: xLo, y: plot.y, width: Math.max(2, xHi - xLo), height: plot.h, "class": "window" }));
     svg.appendChild(ns("line", { x1: xLo, y1: plot.y, x2: xLo, y2: plot.y + plot.h, "class": "window-edge" }));
     svg.appendChild(ns("line", { x1: xHi, y1: plot.y, x2: xHi, y2: plot.y + plot.h, "class": "window-edge" }));
-    svg.appendChild(ns("text", { x: xLo + 4, y: plot.y + 12, "class": "window-label" },
-      "PIT WINDOW · LAPS " + win.lo + "–" + win.hi + " · " + eligible + " LAPS"));
+    var bandText = "PIT WINDOW · LAPS " + win.lo + "–" + win.hi + " · " + eligible + " LAPS";
+    var bandEl = ns("text", { x: Math.max(plot.x + 4, xLo + 4), y: plot.y + 14, "class": "window-label" },
+      bandText);
+    svg.appendChild(bandEl);
+    var bb = bandEl.getBBox();
+    if (bb.x + bb.width > plot.x + plot.w - 4) {
+      bandEl.setAttribute("x", (plot.x + plot.w - 4 - bb.width).toFixed(1));
+    }
+    if (bb.x < plot.x + 2) bandEl.setAttribute("x", (plot.x + 3).toFixed(1));
 
     // no-stop reference
     if (noStop >= y0 && noStop <= y1) {
       var yn = Y(noStop);
       svg.appendChild(ns("line", { x1: plot.x, y1: yn, x2: plot.x + plot.w, y2: yn, "class": "nostop" }));
-      svg.appendChild(ns("text", { x: plot.x + plot.w - 2, y: yn - 4, "text-anchor": "end", "class": "nostop-label" },
+      svg.appendChild(ns("text", { x: plot.x + 6, y: yn - 7, "text-anchor": "start", "class": "nostop-label" },
         "no pit stop · " + fmtShort(noStop)));
     }
 
@@ -2439,8 +2597,9 @@ window.TrackMap = (function () {
     // best marker
     var xb = X(win.best), yb = Y(win.min);
     svg.appendChild(ns("line", { x1: xb, y1: yb, x2: xb, y2: plot.y + plot.h, "class": "mark-best" }));
-    svg.appendChild(ns("text", { x: xb + 4, y: Math.max(plot.y + 26, yb - 17), "class": "mark-label", fill: "#2fdca0" },
-      "BEST " + win.best));
+    var bx = Math.min(Math.max(xb, plot.x + 32), plot.x + plot.w - 32);
+    svg.appendChild(ns("text", { x: bx, y: Math.max(plot.y + 26, yb - 26), "text-anchor": "middle",
+      "class": "mark-label", fill: "#2fdca0" }, "BEST " + win.best));
 
     // your marker, unless it is the best lap
     var you = c.filter(function (dd) { return dd.p === S.pit; })[0];
@@ -2448,8 +2607,9 @@ window.TrackMap = (function () {
       var xyou = X(you.p), yyou = Y(you.t);
       svg.appendChild(ns("line", { x1: xyou, y1: yyou, x2: xyou, y2: plot.y + plot.h, "class": "mark-you" }));
       var youLabelY = you.p <= pMin + 2 ? Math.max(plot.y + 24, yyou - 12) : Math.min(plot.y + plot.h - 8, yyou + 16);
-      svg.appendChild(ns("text", { x: xyou + 5, y: youLabelY, "class": "mark-label", fill: "#ff6a60" },
-        "YOU " + you.p));
+      var ux = Math.min(Math.max(xyou, plot.x + 26), plot.x + plot.w - 26);
+      svg.appendChild(ns("text", { x: ux, y: youLabelY, "text-anchor": "middle",
+        "class": "mark-label", fill: "#ff6a60" }, "YOU " + you.p));
     }
   }
 
@@ -2708,17 +2868,20 @@ window.TrackMap = (function () {
     $("m-tn").textContent = fmt(tn);
     $("m-sp").textContent = fmt(sp);
     $("m-tp").textContent = fmt(total);
-    $("m-be").textContent = Ls.toFixed(1) + " s against " + be.toFixed(2) + " s, so " +
-      (Ls < be ? "stopping can pay" : "staying out is cheaper");
-    $("m-win").textContent = "pit window: T(p) \u2264 T(p*) + " + DELTA.toFixed(2) +
-      " s, laps " + S.win.lo + "\u2013" + S.win.hi + " (" + windowCount() + " eligible laps)";
+    var pays = Ls < be;
+    var beEl = $("m-be");
+    beEl.textContent = Ls.toFixed(1) + " vs " + be.toFixed(2);
+    beEl.className = "rhs " + (pays ? "ok" : "warn");
+    $("m-win").textContent = Ls.toFixed(1) + " s against " + be.toFixed(2) + " s, so " +
+      (pays ? "stopping can pay" : "staying out is cheaper") + " · pit window: T(p) ≤ T(p*) + " +
+      DELTA.toFixed(2) + " s, laps " + S.win.lo + "–" + S.win.hi + " (" + windowCount() + " eligible laps)";
   }
 
   /* ------------------------------------------------------------------ *
    * part 4 — the fit: lap times in, t0 and k out
    * ------------------------------------------------------------------ */
 
-  var FT = { w: 560, h: 260, l: 58, r: 14, t: 16, b: 32 };
+  var FT = { w: 560, h: 260, l: 58, r: 14, t: 26, b: 48 };
 
   function rsq(pairs, t0, k) {
     var n = pairs.length, my = 0, i;
@@ -2745,10 +2908,12 @@ window.TrackMap = (function () {
     var fit = M.fitStint(pairs, true, 3.0);
     var kept = fit.kept || [];
     var xs = pairs.map(function (q) { return q[0]; });
-    var ys = pairs.map(function (q) { return q[1]; });
+    var basis = pairs.filter(function (q) { return kept.indexOf(q[0]) >= 0; });
+    if (basis.length < 3) basis = pairs;
+    var ys = basis.map(function (q) { return q[1]; });
     var xMax = Math.max.apply(null, xs);
     var yLo = Math.min.apply(null, ys), yHi = Math.max.apply(null, ys);
-    var pad = (yHi - yLo) * 0.18 || 0.3;
+    var pad = (yHi - yLo) * 0.35 || 0.3;
     yLo -= pad; yHi += pad;
 
     var X = function (x) { return FT.l + (x / (xMax || 1)) * (FT.w - FT.l - FT.r); };
@@ -2756,16 +2921,29 @@ window.TrackMap = (function () {
 
     svg.appendChild(ns("line", { x1: FT.l, y1: FT.h - FT.b, x2: FT.w - FT.r, y2: FT.h - FT.b, "class": "axis" }));
     svg.appendChild(ns("line", { x1: FT.l, y1: FT.t, x2: FT.l, y2: FT.h - FT.b, "class": "axis" }));
-    svg.appendChild(ns("text", { x: FT.l, y: FT.h - 8, "class": "axislabel" }, "lap"));
-    svg.appendChild(ns("text", { x: 8, y: FT.t + 8, "class": "axislabel" }, "lap time, s"));
+    svg.appendChild(ns("text", { x: FT.w - FT.r, y: FT.h - 6, "text-anchor": "end", "class": "axislabel" }, "lap"));
+    svg.appendChild(ns("text", { x: FT.l, y: FT.t - 8, "class": "axislabel" }, "lap time, s"));
 
     svg.appendChild(ns("line", {
       x1: X(0), y1: Y(fit.t0), x2: X(xMax), y2: Y(fit.t0 + fit.k * xMax), "class": "fitline"
     }));
 
+    /* three ticks an axis, so a marker can read values off the fit */
+    for (var ti = 0; ti < 3; ti++) {
+      var yv = yLo + (yHi - yLo) * (ti + 0.5) / 3;
+      svg.appendChild(ns("text", { x: FT.l - 6, y: Y(yv) + 4, "text-anchor": "end", "class": "tick" },
+        yv.toFixed(1)));
+      var xv = Math.round(xMax * (ti + 0.5) / 3);
+      svg.appendChild(ns("text", { x: X(xv), y: FT.h - FT.b + 16, "text-anchor": "middle", "class": "tick" },
+        "lap " + (xv + 1)));
+    }
+    svg.appendChild(ns("text", { x: FT.w - FT.r, y: FT.t + 11, "text-anchor": "end", "class": "axislabel" },
+      "simulated stint"));
+
     pairs.forEach(function (q) {
       var isKept = kept.indexOf(q[0]) >= 0;
-      svg.appendChild(ns("circle", { cx: X(q[0]), cy: Y(q[1]), r: 3.4, "class": "pt" + (isKept ? "" : " out") }));
+      var cy = Math.max(FT.t + 4, Math.min(FT.h - FT.b - 4, Y(q[1])));
+      svg.appendChild(ns("circle", { cx: X(q[0]), cy: cy, r: 3.4, "class": "pt" + (isKept ? "" : " out") }));
     });
 
     var rejected = pairs.filter(function (q) { return kept.indexOf(q[0]) < 0; })
@@ -2773,12 +2951,10 @@ window.TrackMap = (function () {
     var used = pairs.filter(function (q) { return kept.indexOf(q[0]) >= 0; });
 
     if (out) {
-      out.innerHTML = "fitted <b>t\u2080 = " + fmt(fit.t0) + "</b> \u00b7 <b>k = " + fit.k.toFixed(4) +
-        " s/lap</b> \u00b7 R\u00b2 = " + rsq(used, fit.t0, fit.k).toFixed(3) +
-        " over " + used.length + " of " + pairs.length + " laps" +
-        (rejected.length ? " \u00b7 lap" + (rejected.length > 1 ? "s " : " ") + rejected.join(", ") +
-                           " dropped (the in-lap: traffic and cold tyres)"
-                         : " \u00b7 no lap dropped");
+      out.innerHTML = "<b>t₀ = " + fmt(fit.t0) + "</b> · <b>k = " + fit.k.toFixed(4) +
+        " s/lap</b> · R² = " + rsq(used, fit.t0, fit.k).toFixed(3) +
+        " · " + used.length + " of " + pairs.length + " laps" +
+        (rejected.length ? ", lap " + rejected.join(", ") + " dropped" : ", none dropped");
     }
     S.fit = fit;
   }
