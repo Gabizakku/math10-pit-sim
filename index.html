@@ -43,7 +43,7 @@ html, body {
   margin: 0 auto;
   padding: 0.9em 1.15em 0.55em;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 0.75em;
   font-size: clamp(12px, 0.62vw + 0.30vh, 16.5px);
   background:
@@ -477,9 +477,52 @@ select {
 .pitstrip b { color: var(--text); font-variant-numeric: tabular-nums; }
 .pitstrip .pevent { margin-left: auto; color: var(--accent); font-weight: 600; }
 
+/* ---------- build 1.4: the answer band, and controls a kid can hit ---------- */
+
+#answer {
+  display: grid;
+  gap: 0.3em;
+  padding: 0.65em 0.95em;
+  border: 1px solid var(--line);
+  border-radius: 0.7em;
+  background:
+    linear-gradient(180deg, rgba(47, 220, 160, 0.12), rgba(90, 169, 255, 0.05));
+}
+
+#answer .promise { margin: 0; color: var(--muted); font-size: 0.8em; letter-spacing: 0.02em; }
+
+#answer .answerline {
+  margin: 0; font-size: 1.3em; font-weight: 650; line-height: 1.25; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+#answer .answerline b { color: var(--green); font-weight: 750; }
+#answer .answerline.warn b { color: var(--amber); }
+
+#answer .answersub { margin: 0; color: var(--muted); font-size: 0.8em; line-height: 1.45; max-width: 78ch; }
+
+#answer .trythis {
+  margin: 0.25em 0 0; padding-left: 1.2em;
+  display: grid; gap: 0.18em;
+  color: var(--muted); font-size: 0.79em; line-height: 1.45;
+}
+#answer .trythis b { color: var(--text); font-weight: 600; }
+
+@media (min-width: 1100px) {
+  #answer .trythis { display: flex; flex-wrap: wrap; gap: 0.35em 1.6em; padding-left: 0; list-style-position: inside; }
+  #answer .trythis li { flex: 1 1 26ch; }
+}
+
+.presets button, .fitrow button, #sim .simrow button {
+  min-height: 44px; min-width: 44px;
+  font-size: 0.85em; padding: 0.5em 0.95em;
+}
+.presets button { font-size: 0.8em; }
+.cams button { min-height: 34px; min-width: 34px; font-size: 0.72em; padding: 0.35em 0.75em; }
+
+
 .jump { margin-left: auto; margin-right: 0.9em; font-size: 0.76em; color: var(--accent);
   text-decoration: none; border: 1px solid currentColor; border-radius: 999px;
-  padding: 0.18em 0.7em; white-space: nowrap; }
+  padding: 0.45em 0.9em; min-height: 36px; display: inline-flex; align-items: center; white-space: nowrap; }
 .jump:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 
 #tower .legend { margin: 0.15em 0 0; font-size: 0.6em; color: var(--muted); letter-spacing: 0.01em; }
@@ -519,13 +562,25 @@ select {
     <p class="credits">MATH 10 · Dela Cruz · Ngu · Sumadchat</p>
   </header>
 
+  <!-- the answer, in words, before any maths -->
+  <section id="answer" aria-label="The answer, in one line">
+    <p class="promise">Move the sliders. The page tells you the best lap to pit.</p>
+    <p class="answerline" id="answer-line" aria-live="polite">Pit on lap 26. You save 4.57 seconds.</p>
+    <p class="answersub" id="answer-sub">That is the whole question this page answers: when do we stop, and how much time does stopping actually save?</p>
+    <ol class="trythis">
+      <li><b>Drag the pit-stop cost up to 25 seconds.</b> The answer flips to “do not stop”.</li>
+      <li><b>Drag it back to 20 seconds.</b> The answer comes back to “pit on lap 26”.</li>
+      <li><b>Press ▶ Play in panel 5.</b> Watch the stop happen on the lap the answer names.</li>
+    </ol>
+  </section>
+
   <main>
 
     <aside id="right">
       <!-- 1 · the inputs (proposal panel 1) -->
       <section id="params" class="panel" aria-label="Parameters">
         <div class="panelhead">
-          <h2>1 · Inputs</h2>
+          <h2>1 · Your race numbers</h2>
           <span class="tag">the five inputs</span>
         </div>
 
@@ -536,39 +591,39 @@ select {
         </div>
 
         <div class="slider">
-          <label for="s-t0">Fresh-tyre lap time (t₀) <span class="val" id="v-t0">1:24.500</span></label>
+          <label for="s-t0">How long is a lap on new tyres? <span class="val" id="v-t0">1:24.500</span></label>
           <input id="s-t0" type="range" min="60" max="120" step="0.5" value="84.5">
-          <span class="sub">t₀, seconds for a lap on new tyres</span>
+          <span class="sub">t₀ · seconds for one lap on a brand-new set</span>
         </div>
 
         <div class="slider">
-          <label for="s-k">Tyre degradation coefficient (k) <span class="val" id="v-k">0.035 s/lap</span></label>
+          <label for="s-k">How much slower does each lap get? <span class="val" id="v-k">0.035 s/lap</span></label>
           <input id="s-k" type="range" min="0" max="0.3" step="0.005" value="0.035">
-          <span class="sub">k, seconds a lap adds for every lap on the set</span>
+          <span class="sub">k · seconds added for every extra lap on the same tyres</span>
         </div>
 
         <div class="slider">
-          <label for="s-L">Pit-stop loss (L) <span class="val" id="v-L">20.0 s</span></label>
+          <label for="s-L">What does the pit stop cost you? <span class="val" id="v-L">20.0 s</span></label>
           <input id="s-L" type="range" min="5" max="45" step="0.5" value="20">
-          <span class="sub">L, seconds lost in the pit lane</span>
+          <span class="sub">L · seconds lost driving through the pit lane</span>
         </div>
 
         <div class="slider">
-          <label for="s-n">Total laps (n) <span class="val" id="v-n">53 laps</span></label>
+          <label for="s-n">How many laps is the race? <span class="val" id="v-n">53 laps</span></label>
           <input id="s-n" type="range" min="2" max="80" step="1" value="53">
-          <span class="sub">N, total laps in the race</span>
+          <span class="sub">N · total laps in the race</span>
         </div>
 
         <div class="slider">
-          <label for="pitlap">Current lap: stop on lap <span class="val" id="v-p">26</span></label>
+          <label for="pitlap">Try stopping on lap <span class="val" id="v-p">26</span></label>
           <input id="pitlap" type="range" min="1" max="52" step="1" value="26">
-          <span class="sub">p, the lap you are deciding about · <span id="pitrange">1–52</span></span>
+          <span class="sub">p · the lap you are testing · allowed range <span id="pitrange">1–52</span></span>
         </div>
       </section>
 
       <!-- 2 · the model (proposal panel 2) -->
       <section id="model" class="panel" aria-label="The model with your numbers">
-        <div class="panelhead"><h2>2 · The model, in your numbers</h2><span class="tag">expected output, part 1</span></div>
+        <div class="panelhead"><h2>2 · What the maths says, with your numbers</h2><span class="tag">expected output, part 1</span></div>
         <div class="fm"><span class="lhs">lap n costs</span><code>t(n) = t₀ + k·n</code><span class="rhs" id="m-tn">—</span></div>
         <div class="fm"><span class="lhs">first stint</span><code>S(p) = p·t₀ + k·p(p−1)/2</code><span class="rhs" id="m-sp">—</span></div>
         <div class="fm"><span class="lhs">whole race</span><code>T(p) = S(p) + L + S(N−p)</code><span class="rhs" id="m-tp">—</span></div>
@@ -583,7 +638,7 @@ select {
       <!-- 3 · the curve (proposal panel 3) -->
       <section id="graph" class="panel" aria-label="Total race time by pit lap">
         <div class="panelhead">
-          <h2>3 · The curve: total race time by pit lap</h2>
+          <h2>3 · Which lap is best to stop?</h2>
           <span class="tag">expected output, part 2</span>
         </div>
         <svg id="chart" viewBox="0 0 560 300" role="img" aria-label="Total race time for every pit lap"></svg>
@@ -594,7 +649,7 @@ select {
       <!-- 4 · the data fit (proposal panel 4) -->
       <section id="fit" class="panel" aria-label="Fitting the model to lap times">
         <div class="panelhead">
-          <h2>4 · The data fit: lap times in, t₀ and k out</h2>
+          <h2>4 · Real lap times, turned into numbers</h2>
           <span class="tag">stint data → t₀ and k</span>
         </div>
         <svg id="fitchart" viewBox="0 0 560 260" role="img" aria-label="Lap times with a least-squares fit"></svg>
@@ -615,7 +670,7 @@ select {
     <!-- 1 · the race simulation (expected output, part 3) -->
     <section id="sim" aria-label="Race simulation">
       <div class="panelhead">
-        <h2>5 · Race simulation</h2>
+        <h2>5 · Watch the race</h2>
         <span class="tag">expected output, part 3</span>
       </div>
 
@@ -2273,6 +2328,30 @@ window.TrackMap = (function () {
       versus;
   }
 
+  /* The one line a kid reads first: the answer, in plain words.
+   * innerHTML here only ever wraps numbers computed from PitModel — no user text. */
+  function updateAnswer() {
+    var line = $("answer-line"), sub = $("answer-sub");
+    if (!line) return;
+    var win = S.win;
+    var best = win.min;
+    var noStop = M.noStopTime(S.N, S.t0, S.k);
+    var saved = noStop - best;
+    var be = S.k * S.N * S.N / 4;
+
+    if (saved >= 0.05) {
+      line.className = "answerline";
+      line.innerHTML = 'Pit on lap <b>' + win.best + '</b>. You save <b>' + saved.toFixed(2) + ' seconds</b>.';
+      sub.textContent = 'The stop costs ' + S.L.toFixed(1) + ' s. The fresh tyres give back more than that, so stopping on lap ' +
+        win.best + ' wins. A stop only pays while it costs less than ' + be.toFixed(2) + ' s.';
+    } else {
+      line.className = "answerline warn";
+      line.innerHTML = 'Do not stop. Stopping costs you <b>' + Math.abs(saved).toFixed(2) + ' seconds</b>.';
+      sub.textContent = 'At ' + S.L.toFixed(1) + ' s the stop costs more than the fresh tyres give back. A stop only pays if it costs ' +
+        'less than ' + be.toFixed(2) + ' s: drag the pit-stop cost below that and an answer appears.';
+    }
+  }
+
   /* ------------------------------------------------------------------ *
    * part 3 — the race
    * ------------------------------------------------------------------ */
@@ -2438,6 +2517,7 @@ window.TrackMap = (function () {
     build();
     drawChart();
     updateVerdict();
+    updateAnswer();
     updateModel();
     resetSim();
   }
@@ -2449,6 +2529,7 @@ window.TrackMap = (function () {
     build();
     drawChart();
     updateVerdict();
+    updateAnswer();
     updateModel();
     resetSim();
   }
@@ -2586,6 +2667,7 @@ window.TrackMap = (function () {
     showParams();
     drawChart();
     updateVerdict();
+    updateAnswer();
     updateModel();
     drawFit();
     resetSim(false);
@@ -2660,7 +2742,7 @@ window.TrackMap = (function () {
       }
 
       var b2 = document.getElementById("build");
-      if (b2) b2.textContent = "build 1.2 · " + vw + "x" + vh +
+      if (b2) b2.textContent = "build 1.4 · " + vw + "x" + vh +
         (scrolling ? " · scroll" : (k < 0.999 ? " · scaled " + Math.round(k * 100) + "%" : ""));
     }
     window.fitStage = fitStage;
