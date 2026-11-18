@@ -1935,8 +1935,21 @@ window.TrackMap = (function () {
       rot.appendChild(el("path", { d: smoothPath(lane, false), fill: "none",
         stroke: "#7c8ca6", "stroke-width": 8, "stroke-linecap": "round", "stroke-linejoin": "round" }));
       var mm = lane[Math.floor(lane.length * 0.45)];
-      rot.appendChild(el("text", { x: mm[0] - 46, y: mm[1] + 10, class: "map-label",
-        "text-anchor": "end" }, "PIT LANE"));
+      // keep the label inside the panel: choose the side of the lane with room, then clamp
+      // to the view box so it can never run off the edge and clip (it did, over the straight)
+      var tw = 250, margin = 16;
+      var roomRight = (view.x + view.w) - mm[0], roomLeft = mm[0] - view.x;
+      var anchor = roomRight > roomLeft ? "start" : "end";
+      var lx = anchor === "start" ? mm[0] + 46 : mm[0] - 46;
+      if (anchor === "start" && lx + tw > view.x + view.w - margin) {
+        anchor = "end"; lx = mm[0] - 46;
+      } else if (anchor === "end" && lx - tw < view.x + margin) {
+        anchor = "start"; lx = mm[0] + 46;
+      }
+      lx = Math.max(view.x + margin, Math.min(lx, view.x + view.w - margin));
+      var ly = Math.max(view.y + margin + 44, Math.min(mm[1] + 14, view.y + view.h - margin));
+      rot.appendChild(el("text", { x: lx, y: ly, class: "map-label",
+        "text-anchor": anchor }, "PIT LANE"));
     })();
 
     // start / finish: a small chequered bar across the road
