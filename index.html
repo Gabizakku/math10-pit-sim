@@ -548,6 +548,158 @@ select {
 .verdict .warn { color: var(--amber); }
 .verdict .you { color: var(--blue); font-weight: 700; }
 
+/* ===================================================================
+   Design-draft parity (2026-11-18, Zach's ruling).
+   Three regions: SIMULATION dominant on the left, PARAMETER PANEL and
+   GRAPH PANEL stacked on the right. Base type raised so nothing a
+   visitor must read renders below 14 px, nothing at all below 12 px.
+   =================================================================== */
+
+html, body { height: auto; min-height: 100%; overflow-y: auto; overflow-x: hidden; }
+
+#stage {
+  font-size: clamp(15px, 0.45vw + 0.55vh, 19px);
+  grid-template-rows: auto auto auto auto;
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}
+
+#top h1 { font-size: 2.1em; line-height: 1.15; }
+#top h1 .thin { font-size: 0.6em; }
+#answer .promise { font-size: 0.95em; }
+#answer .answerline { font-size: 1.55em; line-height: 1.25; }
+#answer .answersub { font-size: 0.95em; line-height: 1.45; }
+#answer .trythis { font-size: 0.95em; line-height: 1.45; }
+#bottom .credits, #top .credits { font-size: 0.85em; }
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 1em;
+  overflow: visible;
+  align-items: start;
+  grid-template-rows: auto;
+}
+
+#sim {
+  grid-area: 1 / 1 / 2 / 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+}
+
+#right {
+  grid-area: 1 / 2 / 2 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  position: static;
+  inset: auto;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  min-width: 0;
+}
+
+#simstage { flex: 0 0 auto; height: clamp(380px, 64vh, 720px); position: relative; }
+
+.panelhead h2 { font-size: 1.05em; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+.panelhead h3 { font-size: 1em; letter-spacing: 0.03em; margin: 0; font-weight: 600; }
+.panel .tag, #sim .tag { font-size: 0.8em; }
+
+.slider label { font-size: 1em; font-weight: 500; }
+.slider .val { font-size: 1em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.slider .sub { font-size: 0.85em; line-height: 1.4; }
+
+.presets button,
+#sim .simrow button,
+.fitrow button,
+#top .jump {
+  font-size: 0.95em;
+  font-weight: 600;
+  min-height: 44px;
+}
+
+.fm { font-size: 0.95em; line-height: 1.6; }
+.fm code { font-size: 1em; }
+.pitstrip { font-size: 0.95em; }
+.pitstrip b { font-size: 1.05em; }
+.note, .verdict, .fitread { font-size: 0.9em; line-height: 1.5; }
+#m-win { font-size: 0.9em; }
+.timer { font-size: 0.95em; }
+.timer b { font-size: 1.15em; }
+
+#chart text, #fitchart text { font-size: 16px; }
+#chart, #fitchart { width: 100%; height: auto; display: block; }
+
+.readouts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8em;
+  margin-top: 0.9em;
+}
+.readout {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0.5em;
+  padding: 0.7em 0.9em;
+}
+.readout .rlabel { display: block; font-size: 0.9em; color: var(--muted); }
+.readout .rnum {
+  display: block;
+  font-size: 1.5em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15em;
+  color: var(--text);
+}
+
+#model.modelreadout { margin-top: 1em; padding-top: 0.9em; border-top: 1px solid var(--line); }
+#fit.fitblock { margin-top: 1em; padding-top: 0.9em; border-top: 1px solid var(--line); }
+#fit .panelhead { margin-bottom: 0.4em; }
+
+@media (max-width: 900px) {
+  main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
+  #sim { grid-area: 1 / 1 / 2 / 2; }
+  #right { grid-area: 2 / 1 / 3 / 2; }
+  #simstage { min-height: 52vh; }
+  #stage { font-size: clamp(15px, 4.1vw, 18px); }
+  .readouts { grid-template-columns: 1fr; }
+  #top { flex-wrap: wrap; gap: 0.4em; }
+  #top .credits { white-space: normal; width: 100%; }
+  #top .jump { order: 3; }
+  #top, #answer, main, #bottom { min-width: 0; max-width: 100%; }
+}
+
+/* HUD micro-labels: the overlay instruments are not exempt from the type floor. */
+#tower .info, #tower .info b, #tower .info i, #tower .info span,
+#tower .trow, #tower .trow b, #tower .trow i, #tower .trow span,
+#hud .legend, #hud .legend b,
+#tel .speed span, #tel .drivetrain i, #tel .drivetrain span,
+#sectors .sec b, #sectors .sec i { font-size: max(0.8em, 12.5px); }
+#chart .axislabel, #fit .axislabel { font-size: 15px; }
+
+/* The model rows now live in the narrow right column: label and formula on the
+   left, the number on the right, nothing allowed to clip. */
+#model .fm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 46%);
+  align-items: baseline;
+  gap: 0.1em 0.7em;
+  padding: 0.3em 0;
+}
+#model .fm .lhs { grid-column: 1; font-size: 0.85em; color: var(--muted); }
+#model .fm code { grid-column: 1; font-size: 1em; white-space: normal; }
+#model .fm .rhs {
+  grid-column: 2; grid-row: 1 / span 2; align-self: center;
+  white-space: normal; overflow: visible; text-overflow: clip;
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+
 </style>
 </head>
 <body>
@@ -570,17 +722,57 @@ select {
     <ol class="trythis">
       <li><b>Drag the pit-stop cost up to 25 seconds.</b> The answer flips to “do not stop”.</li>
       <li><b>Drag it back to 20 seconds.</b> The answer comes back to “pit on lap 26”.</li>
-      <li><b>Press ▶ Play in panel 5.</b> Watch the stop happen on the lap the answer names.</li>
+      <li><b>Press ▶ Play in the simulation.</b> Watch the stop happen on the lap the answer names.</li>
     </ol>
   </section>
 
   <main>
 
+    <!-- SIMULATION · the dominant region, left (draft region 1) -->
+    <section id="sim" aria-label="Race simulation">
+      <div class="panelhead">
+        <h2>Simulation</h2>
+        <span class="tag">expected output, part 3</span>
+      </div>
+
+      <div id="simstage">
+        <div id="mapstage"></div>
+        <div id="hud"></div>
+      </div>
+
+      <div class="pitstrip">
+        <span>pit stop on lap <b id="ps-lap">27</b></span>
+        <span>costs <b id="ps-loss">20.0 s</b> (your slider)</span>
+        <span><b id="ps-n">53</b> laps in the race</span>
+        <span class="pevent" id="ps-event">no stop yet</span>
+      </div>
+
+      <div class="simrow">
+        <button id="play">▶ Play</button>
+        <button id="reset">Reset</button>
+        <span class="timer">race timer <b id="clock">0:00.000</b></span>
+      </div>
+
+      <p id="simnote" class="note">Press Play. The race is simulated lap by lap from your numbers, at 20 times real time.</p>
+
+      <div class="readouts">
+        <div class="readout">
+          <span class="rlabel">Lap for pit stop</span>
+          <span class="rnum" id="rd-lap">26</span>
+        </div>
+        <div class="readout">
+          <span class="rlabel">Total race time</span>
+          <span class="rnum" id="rd-time">1:15:22.160</span>
+        </div>
+      </div>
+    </section>
+
     <aside id="right">
-      <!-- 1 · the inputs (proposal panel 1) -->
+
+      <!-- PARAMETER PANEL · right column, top (draft region 2) -->
       <section id="params" class="panel" aria-label="Parameters">
         <div class="panelhead">
-          <h2>1 · Your race numbers</h2>
+          <h2>Parameter panel</h2>
           <span class="tag">the five inputs</span>
         </div>
 
@@ -619,82 +811,41 @@ select {
           <input id="pitlap" type="range" min="1" max="52" step="1" value="26">
           <span class="sub">p · the lap you are testing · allowed range <span id="pitrange">1–52</span></span>
         </div>
+
+        <div id="model" class="modelreadout" aria-label="The model with your numbers">
+          <div class="fm"><span class="lhs">lap n costs</span><code>t(n) = t₀ + k·n</code><span class="rhs" id="m-tn">—</span></div>
+          <div class="fm"><span class="lhs">first stint</span><code>S(p) = p·t₀ + k·p(p−1)/2</code><span class="rhs" id="m-sp">—</span></div>
+          <div class="fm"><span class="lhs">whole race</span><code>T(p) = S(p) + L + S(N−p)</code><span class="rhs" id="m-tp">—</span></div>
+          <div class="fm"><span class="lhs">stop only if</span><code>L &lt; k·N²/4</code><span class="rhs" id="m-be">—</span></div>
+          <p class="note" id="m-win">—</p>
+        </div>
       </section>
 
-      <!-- 2 · the model (proposal panel 2) -->
-      <section id="model" class="panel" aria-label="The model with your numbers">
-        <div class="panelhead"><h2>2 · What the maths says, with your numbers</h2><span class="tag">expected output, part 1</span></div>
-        <div class="fm"><span class="lhs">lap n costs</span><code>t(n) = t₀ + k·n</code><span class="rhs" id="m-tn">—</span></div>
-        <div class="fm"><span class="lhs">first stint</span><code>S(p) = p·t₀ + k·p(p−1)/2</code><span class="rhs" id="m-sp">—</span></div>
-        <div class="fm"><span class="lhs">whole race</span><code>T(p) = S(p) + L + S(N−p)</code><span class="rhs" id="m-tp">—</span></div>
-        <div class="fm"><span class="lhs">stop only if</span><code>L &lt; k·N²/4</code><span class="rhs" id="m-be">—</span></div>
-        <p class="note" id="m-win">—</p>
-        <p class="note">Read it downwards: one lap, then a stretch of laps on one set of
-        tyres, then the whole race with the stop in it, then the rule for when a stop can pay at all.
-        The number on the right of each line is your own sliders run through it, so the formula and
-        the race can never tell different stories.</p>
-      </section>
-
-      <!-- 3 · the curve (proposal panel 3) -->
+      <!-- GRAPH PANEL · right column, below the parameters (draft region 3) -->
       <section id="graph" class="panel" aria-label="Total race time by pit lap">
         <div class="panelhead">
-          <h2>3 · Which lap is best to stop?</h2>
-          <span class="tag">expected output, part 2</span>
+          <h2>Graph panel</h2>
+          <span class="tag">total race time by pit lap</span>
         </div>
-        <svg id="chart" viewBox="0 0 560 300" role="img" aria-label="Total race time for every pit lap"></svg>
-        <p class="note">Piecewise comparison: stint one, the pit stop, stint two, for every lap you could stop on.</p>
-        <div id="verdict" class="verdict"></div>
-      </section>
 
-      <!-- 4 · the data fit (proposal panel 4) -->
-      <section id="fit" class="panel" aria-label="Fitting the model to lap times">
-        <div class="panelhead">
-          <h2>4 · Real lap times, turned into numbers</h2>
-          <span class="tag">stint data → t₀ and k</span>
-        </div>
-        <svg id="fitchart" viewBox="0 0 560 260" role="img" aria-label="Lap times with a least-squares fit"></svg>
-        <div id="fit-readout" class="fitread"></div>
-        <p class="note">The dots are lap times from a stint. Least squares draws the straight
-        line that sits closest to them: where the line starts is <b>t₀</b> (a fresh-tyre lap), how
-        steep it is is <b>k</b> (seconds lost per lap), and <b>R²</b> says how much of the spread the
-        line explains, so 1.00 is a perfect fit. The button puts t₀ and k back into the sliders, so
-        panels 1 to 3 run on measured laps instead of guesses.</p>
-        <div class="fitrow">
-          <button id="fit-use">Use the fitted numbers</button>
-          <span class="note" id="fit-note">Dataset: a simulated stint, labelled simulated everywhere.</span>
+        <svg id="chart" viewBox="0 0 560 300" role="img" aria-label="Total race time for every pit lap"></svg>
+        <div id="verdict" class="verdict"></div>
+
+        <div id="fit" class="fitblock" aria-label="Fitting the model to lap times">
+          <div class="panelhead">
+            <h3>Real lap times, turned into numbers</h3>
+            <span class="tag">stint data → t₀ and k</span>
+          </div>
+          <svg id="fitchart" viewBox="0 0 560 240" role="img" aria-label="Lap times with a least-squares fit"></svg>
+          <div id="fit-readout" class="fitread"></div>
+          <div class="fitrow">
+            <button id="fit-use">Use the fitted numbers</button>
+            <span class="note" id="fit-note">Dataset: a simulated stint, labelled simulated everywhere.</span>
+          </div>
         </div>
       </section>
 
     </aside>
-
-    <!-- 1 · the race simulation (expected output, part 3) -->
-    <section id="sim" aria-label="Race simulation">
-      <div class="panelhead">
-        <h2>5 · Watch the race</h2>
-        <span class="tag">expected output, part 3</span>
-      </div>
-
-      <div id="simstage">
-        <div id="mapstage"></div>
-        <div id="hud"></div>
-      </div>
-
-      <div class="pitstrip">
-        <span>pit stop on lap <b id="ps-lap">27</b></span>
-        <span>costs <b id="ps-loss">20.0 s</b> (your slider)</span>
-        <span><b id="ps-n">53</b> laps in the race</span>
-        <span class="pevent" id="ps-event">no stop yet</span>
-      </div>
-
-      <div class="simrow">
-        <button id="play">▶ Play</button>
-        <button id="reset">Reset</button>
-        <span class="timer">race timer <b id="clock">0:00.000</b></span>
-        <span class="simhint">runs at 20× real time; the clock pays the pit loss, in the pits in under two seconds</span>
-      </div>
-
-      <p id="simnote" class="note">Press Play. The race is simulated lap by lap from your numbers.</p>
-    </section>
   </main>
 
   <footer id="bottom">
@@ -2326,6 +2477,10 @@ window.TrackMap = (function () {
       'Pit window (±' + DELTA.toFixed(2) + ' s): <span class="good">laps ' + win.lo + '–' + win.hi + '</span>. ' +
       'Your stop on lap <span class="you">' + S.pit + '</span>: ' + fmt(you) + ', ' + close + '. ' +
       versus;
+
+    var rdLap = $("rd-lap"), rdTime = $("rd-time");
+    if (rdLap) rdLap.textContent = win.best;
+    if (rdTime) rdTime.textContent = fmt(you);
   }
 
   /* The one line a kid reads first: the answer, in plain words.
@@ -2742,7 +2897,7 @@ window.TrackMap = (function () {
       }
 
       var b2 = document.getElementById("build");
-      if (b2) b2.textContent = "build 1.4 · " + vw + "x" + vh +
+      if (b2) b2.textContent = "build 1.5 · " + vw + "x" + vh +
         (scrolling ? " · scroll" : (k < 0.999 ? " · scaled " + Math.round(k * 100) + "%" : ""));
     }
     window.fitStage = fitStage;
