@@ -864,6 +864,16 @@ main {
    number box, so it rendered as a stub: give it the full row like the others */
 .slider #pitlap { width: 100%; padding: 0; border: 0; background: none; border-radius: 0; }
 
+/* race speed pills beside Play and Reset: the selected one is lit */
+#sim .simrow .speeds { display: inline-flex; gap: 0.25em; }
+#sim .simrow .speeds button { min-width: 3.2em; padding-left: 0.5em; padding-right: 0.5em;
+  font-variant-numeric: tabular-nums; opacity: 0.75; }
+#sim .simrow .speeds button.on { opacity: 1; border-color: var(--accent); color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--accent); }
+@media (max-width: 520px) {
+  #sim .simrow { flex-wrap: wrap; }
+}
+
 </style>
 </head>
 <body>
@@ -909,6 +919,12 @@ main {
       <div class="simrow">
         <button id="play">▶ Play</button>
         <button id="reset">Reset</button>
+        <span class="speeds" role="group" aria-label="Race speed">
+          <button data-speed="5" aria-pressed="false">5×</button>
+          <button data-speed="20" aria-pressed="true" class="on">20×</button>
+          <button data-speed="60" aria-pressed="false">60×</button>
+          <button data-speed="120" aria-pressed="false">120×</button>
+        </span>
         <span class="timer">race timer <b id="clock">0:00.000</b></span>
       </div>
 
@@ -2068,8 +2084,10 @@ window.TrackMap = (function () {
 
     /* the lane label, horizontal, on the garage side so it never sits on the
      * racing line */
-    var lx = pit[mid][0] + pn[mid][0] * toGarage * u(46);
-    var ly = pit[mid][1] + pn[mid][1] * toGarage * u(46);
+    /* just past the garages (they sit at u(16)), so the word reads as the lane's
+     * name; at u(46) it sat against the back straight and read as that road's label */
+    var lx = pit[mid][0] + pn[mid][0] * toGarage * u(31);
+    var ly = pit[mid][1] + pn[mid][1] * toGarage * u(31);
     rot.appendChild(label(lx, ly, "PIT LANE", "map-label map-label-pit"));
 
     /* ---- start / finish ---- */
@@ -2188,7 +2206,11 @@ window.TrackMap = (function () {
   var M = window.PitModel;
   var L = 20;          // pit stop penalty, seconds (proposal)
   var DELTA = 1;       // pit window tolerance, seconds (proposal)
-  var PIT_PAUSE = 1;   // real seconds the car stands still (proposal: 1 s shown)
+  /* real seconds for the whole pit-lane visit, whatever the race speed: about 1 s
+   * driving in, about 1 s stationary in the box (the expected output: "stops for
+   * 1 second, representative of 20 seconds"), about 1 s driving out. At 1 s for the
+   * whole visit the car stood still for 0.4 s and the stop was easy to miss. */
+  var PIT_PAUSE = 2.6;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -2576,6 +2598,18 @@ window.TrackMap = (function () {
     finish();
   }
 
+  /* playback speed: how many race seconds pass per real second. Changing it
+   * never resets the race, so a presenter can slow down for the stop and speed
+   * up for the long stints. */
+  function setSpeed(v) {
+    S.speed = v;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-speed]"), function (b) {
+      var on = parseFloat(b.getAttribute("data-speed")) === v;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
   function cycleSpeed() {
     var i = SPEEDS.indexOf(S.speed);
     S.speed = SPEEDS[(i + 1) % SPEEDS.length];
@@ -2855,6 +2889,10 @@ window.TrackMap = (function () {
     });
     $("pitlap").addEventListener("input", onPitLap);
     $("play").onclick = runOrPause;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-speed]"), function (b) {
+      b.addEventListener("click", function () { setSpeed(parseFloat(b.getAttribute("data-speed"))); });
+    });
+    setSpeed(S.speed);
     $("reset").onclick = function () { resetSim(); };
     Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function (b) {
       b.addEventListener("click", function () { applyPreset(b.getAttribute("data-preset")); });
