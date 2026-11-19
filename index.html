@@ -935,8 +935,6 @@ main {
         </div>
 
         <div class="slider">
-          <label for="s-L">What does the pit stop cost you? <span class="val" id="v-L">20.0 s</span></label>
-          <input id="s-L" type="range" min="5" max="45" step="0.5" value="20">
           <span class="sub">L · seconds lost driving through the pit lane</span>
         </div>
 
@@ -956,7 +954,6 @@ main {
           <div class="fm"><span class="lhs">lap n costs</span><code>t(n) = t₀ + k·n</code><span class="rhs" id="m-tn">—</span></div>
           <div class="fm"><span class="lhs">first stint</span><code>S(p) = p·t₀ + k·p(p−1)/2</code><span class="rhs" id="m-sp">—</span></div>
           <div class="fm"><span class="lhs">whole race</span><code>T(p) = S(p) + L + S(N−p)</code><span class="rhs" id="m-tp">—</span></div>
-          <div class="fm"><span class="lhs">stop only if</span><code>L &lt; k·N²/4</code><span class="rhs" id="m-be">—</span></div>
           <p class="note" id="m-win">—</p>
         </div>
       </section>
@@ -970,11 +967,6 @@ main {
 
         <svg id="chart" viewBox="0 0 560 300" role="img" aria-label="Total race time for every pit lap"></svg>
         <div id="verdict" class="verdict"></div>
-        <div id="fit" class="fitblock" aria-label="The least-squares fit behind the model">
-          <div class="panelhead">
-            <h3>Where the two numbers come from</h3>
-            <span class="tag">least squares on stint data</span>
-          </div>
           <div id="fit-readout" class="fitread"></div>
           <div class="fitrow">
             <button id="fit-use">Use the fitted numbers</button>
@@ -2539,7 +2531,7 @@ window.TrackMap = (function () {
     S.t0 = parseFloat($("s-t0").value);
     S.k = parseFloat($("s-k").value);
     S.N = parseInt($("s-n").value, 10);
-    S.L = parseFloat($("s-L").value);
+    S.L = 20;   /* fixed: Venice, 11-19, the pit loss is not a parameter */
     L = S.L;                       // pit loss is an input now, not a fixed constant
   }
 
@@ -2552,7 +2544,7 @@ window.TrackMap = (function () {
   function showParams() {
     $("v-t0").textContent = fmt(S.t0);
     $("v-k").textContent = S.k.toFixed(3) + " s/lap";
-    $("v-L").textContent = S.L.toFixed(1) + " s";
+
     $("v-n").textContent = S.N + " laps";
     $("v-p").textContent = S.pit;
     var pl = $("ps-lap"), lo = $("ps-loss"), pn = $("ps-n");
@@ -2942,13 +2934,11 @@ window.TrackMap = (function () {
     $("m-tn").textContent = fmt(tn);
     $("m-sp").textContent = fmt(sp);
     $("m-tp").textContent = fmt(total);
-    var pays = Ls < be;
-    var beEl = $("m-be");
-    beEl.textContent = Ls.toFixed(1) + " vs " + be.toFixed(2);
-    beEl.className = "rhs " + (pays ? "ok" : "warn");
-    $("m-win").textContent = Ls.toFixed(1) + " s against " + be.toFixed(2) + " s, so " +
-      (pays ? "stopping can pay" : "staying out is cheaper") + " · pit window: T(p) ≤ T(p*) + " +
-      DELTA.toFixed(2) + " s, laps " + S.win.lo + "–" + S.win.hi + " (" + windowCount() + " eligible laps)";
+    /* the "stop only if" line is off the page (Venice, 11-19 08:30); the note
+     * states the pit window only, in plain words */
+    var win = $("m-win");
+    if (win) win.textContent = "pit window: T(p) ≤ T(p*) + " + DELTA.toFixed(2) +
+      " s, laps " + S.win.lo + "–" + S.win.hi + " (" + windowCount() + " eligible laps)";
   }
 
   /* ------------------------------------------------------------------ *
@@ -2977,6 +2967,7 @@ window.TrackMap = (function () {
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     var laps = (window.STINT || []).slice();
     var out = $("fit-readout");
+    if (!out) return;   /* the fit block is gone (Venice, 11-19) */
     if (laps.length < 3) { if (out) out.textContent = "No stint data in the page."; return; }
 
     var pairs = laps.map(function (t, i) { return [i, t]; });
@@ -3045,7 +3036,7 @@ window.TrackMap = (function () {
     if (!v) return;
     $("s-t0").value = v.t0;
     $("s-k").value = v.k;
-    $("s-L").value = v.L;
+
     $("s-n").value = v.N;
     onParam();
   }
@@ -3059,7 +3050,7 @@ window.TrackMap = (function () {
 
     $("s-t0").value = DEFAULTS.t0;
     $("s-k").value = DEFAULTS.k;
-    $("s-L").value = DEFAULTS.L;
+
     $("s-n").value = DEFAULTS.N;
     S.L = DEFAULTS.L;
     L = S.L;
@@ -3090,7 +3081,7 @@ window.TrackMap = (function () {
       });
     });
 
-    ["s-t0", "s-k", "s-L", "s-n"].forEach(function (id) {
+    ["s-t0", "s-k", "s-n"].forEach(function (id) {
       $(id).addEventListener("input", onParam);
     });
     $("pitlap").addEventListener("input", onPitLap);
@@ -3100,6 +3091,7 @@ window.TrackMap = (function () {
       b.addEventListener("click", function () { applyPreset(b.getAttribute("data-preset")); });
     });
     var use = $("fit-use");
+    if (!use) return;
     if (use) use.onclick = function () {
       if (!S.fit) return;
       $("s-t0").value = Math.max(60, Math.min(120, Math.round(S.fit.t0 * 2) / 2));
