@@ -935,16 +935,6 @@ main {
         <span class="timer">race timer <b id="clock">0:00.000</b></span>
       </div>
 
-      <div class="readouts">
-        <div class="readout">
-          <span class="rlabel">Lap for pit stop</span>
-          <span class="rnum" id="rd-lap">26</span>
-        </div>
-        <div class="readout">
-          <span class="rlabel">Total race time</span>
-          <span class="rnum" id="rd-time">1:15:22.160</span>
-        </div>
-      </div>
     </section>
 
     <aside id="right">
@@ -974,10 +964,9 @@ main {
           <span class="sub">k · seconds added for every extra lap on the same tyres</span>
         </div>
 
-        <div class="slider">
-          <label for="s-L">What does the pit stop cost you? <span class="val" id="v-L">20.0 s</span></label>
-          <input id="s-L" type="range" min="5" max="45" step="0.5" value="20">
-          <span class="sub">L · seconds lost driving through the pit lane</span>
+        <div class="slider fixed">
+          <label>What does the pit stop cost you? <span class="val" id="v-L">20.0 s</span></label>
+          <span class="sub">L · fixed at 20 seconds, the figure the proposal uses</span>
         </div>
 
         <div class="slider">
@@ -1004,18 +993,11 @@ main {
       <section id="graph" class="panel" aria-label="Total race time by pit lap">
         <div class="panelhead">
           <h2>Graph panel</h2>
-          <span class="tag">3 the curve · 4 data fit</span>
+          <span class="tag">the curve</span>
         </div>
 
         <svg id="chart" viewBox="0 0 560 300" role="img" aria-label="Total race time for every pit lap"></svg>
         <div id="verdict" class="verdict"></div>
-          <div id="fit-readout" class="fitread"></div>
-          <div class="fitrow">
-            <label class="fitsrc">Real laps from <select id="fit-src" aria-label="Whose real lap times the fit uses"></select></label>
-            <button id="fit-use">Use the fitted numbers</button>
-            <span class="note" id="fit-note">—</span>
-          </div>
-        </div>
 
       </section>
 
@@ -1745,8 +1727,7 @@ window.HUD = (function () {
         '<div><b>BEST</b><i id="i-best">—</i></div>' +
         '<div><b>TYRE</b><i id="i-tyre">—</i></div>' +
       '</div>' +
-      '<p class="legend"><b>LAP</b> laps done · <b>LAST</b> your last lap · ' +
-      '<b>BEST</b> your fastest lap · <b>TYRE</b> laps on this set</p>';
+      '';
 
     els = {
       tower: document.getElementById("tower"),
@@ -2297,9 +2278,9 @@ window.TrackMap = (function () {
     S.t0 = parseFloat($("s-t0").value);
     S.k = parseFloat($("s-k").value);
     S.N = parseInt($("s-n").value, 10);
-    /* pit-stop loss is an input: the submitted proposal's panel 1 lists it with
-     * the other sliders, and it is the only input that shows the break-even rule */
-    S.L = parseFloat($("s-L").value);
+    /* pit-stop loss is a constant (Venice, 19 Nov 20:53: "lap cost is not a
+     * parameter and would be set to the constant 20"). */
+    S.L = 20;
     L = S.L;
   }
 
@@ -2466,9 +2447,8 @@ window.TrackMap = (function () {
         : '<span class="warn">+' + extra.toFixed(2) + ' s off the best</span>';
 
     var versus = wonBy >= 0
-      ? 'Staying out the whole race costs ' + fmt(noStop) + ', so the best stop saves <b>' + wonBy.toFixed(2) + ' s</b>.'
-      : 'Staying out costs ' + fmt(noStop) + ', which is <b>' + (-wonBy).toFixed(2) +
-        ' s cheaper</b> than stopping: with this wear the stop does not pay for itself.';
+      ? 'The best stop saves <b>' + wonBy.toFixed(2) + ' s</b>.'
+      : 'At this wear the stop does not pay for itself.';
 
     $("verdict").innerHTML =
       'Best stop: <b>lap ' + win.best + '</b>' + (tieLap() ? ' (lap ' + tieLap() + ' ties)' : '') + ' at <b>' + fmt(best) + '</b>. ' +
@@ -2476,9 +2456,6 @@ window.TrackMap = (function () {
       'Your stop on lap <span class="you">' + S.pit + '</span>: ' + fmt(you) + ', ' + close + '. ' +
       versus;
 
-    var rdLap = $("rd-lap"), rdTime = $("rd-time");
-    if (rdLap) rdLap.textContent = win.best;
-    if (rdTime) rdTime.textContent = fmt(you);
   }
 
   /* The one line a kid reads first: the answer, in plain words.
@@ -2497,17 +2474,15 @@ window.TrackMap = (function () {
 
     if (saved >= 0.05) {
       line.className = "answerline";
-      line.innerHTML = 'Pit on lap <b>' + win.best + '</b>' + (tie ? ' (lap ' + tie + ' ties)' : '') +
+      line.innerHTML = 'Best: pit on lap <b>' + win.best + '</b>' + (tie ? ' (lap ' + tie + ' ties)' : '') +
         '. You save <b>' + saved.toFixed(2) + ' seconds</b>.';
       sub.textContent = 'The stop costs ' + S.L.toFixed(1) + ' s. The fresh tyres give back more than that, so stopping on lap ' +
         win.best + ' wins. A stop only pays while it costs less than ' + be.toFixed(2) + ' s.';
     } else {
       line.className = "answerline warn";
-      line.innerHTML = 'At this pit cost no stop repays itself: the best stop still costs you <b>' +
-        Math.abs(saved).toFixed(2) + ' seconds</b> more than staying out.';
-      sub.textContent = 'At ' + S.L.toFixed(1) + ' s the stop costs more than the fresh tyres give back. A stop only pays if it costs ' +
-        'less than ' + be.toFixed(2) + ' s. In a real dry race the rules still make every car stop once ' +
-        '(two tyre compounds), and the cheapest place for that stop is still lap ' + win.best + '.';
+      line.innerHTML = 'At this wear the stop does not pay for itself: the best stop is still lap <b>' + win.best +
+        '</b>, and it costs <b>' + Math.abs(saved).toFixed(2) + ' seconds</b> more than a race on one set.';
+      sub.textContent = 'A stop only pays if it costs less than ' + be.toFixed(2) + ' s.';
     }
   }
 
@@ -2794,6 +2769,7 @@ window.TrackMap = (function () {
   }
 
   function drawFit() {
+    if (!$("fit-readout")) return;  /* the data-fit block is off the page */
     /* the chart is gone from the page (Venice, 23:31: the fitted line only
      verified the maths). Draw into a detached svg so the readout still fills. */
     var svg = $("fitchart") || document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -2880,7 +2856,6 @@ window.TrackMap = (function () {
     if (!v) return;
     $("s-t0").value = v.t0;
     $("s-k").value = v.k;
-    $("s-L").value = v.L;
     $("s-n").value = v.N;
     onParam();
   }
@@ -2894,7 +2869,6 @@ window.TrackMap = (function () {
 
     $("s-t0").value = DEFAULTS.t0;
     $("s-k").value = DEFAULTS.k;
-    $("s-L").value = DEFAULTS.L;
     $("s-n").value = DEFAULTS.N;
 
     readParams();
@@ -2927,7 +2901,7 @@ window.TrackMap = (function () {
       });
     });
 
-    ["s-t0", "s-k", "s-L", "s-n"].forEach(function (id) {
+    ["s-t0", "s-k", "s-n"].forEach(function (id) {
       $(id).addEventListener("input", onParam);
     });
     $("pitlap").addEventListener("input", onPitLap);
