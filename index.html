@@ -874,6 +874,11 @@ main {
   #sim .simrow { flex-wrap: wrap; }
 }
 
+/* which real stint the fit uses */
+#graph .fitsrc { font-size: 0.875rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.35em; }
+#graph .fitsrc select { font: inherit; font-size: 0.875rem; color: var(--text); background: #0a121e;
+  border: 1px solid var(--line); border-radius: 0.4em; padding: 0.15em 0.3em; max-width: 19em; }
+
 </style>
 </head>
 <body>
@@ -892,7 +897,7 @@ main {
   <section id="answer" aria-label="The answer, in one line">
     <p class="answerline" id="answer-line" aria-live="polite">Pit on lap 26. You save 4.57 seconds.</p>
     <p class="answersub" id="answer-sub">That is the whole question this page answers: when do we stop, and how much time does stopping actually save?</p>
-    <p class="sources" id="sources">Lap data: Leclerc, Monza 2024 (F1 timing via Jolpica-F1) · Circuit: bacinger/f1-circuits (MIT)</p>
+    <p class="sources" id="sources">Lap data: Leclerc and Verstappen, Monza 2023–24 (F1 timing via Jolpica-F1) · Circuit: bacinger/f1-circuits (MIT)</p>
   </section>
 
   <main>
@@ -919,6 +924,8 @@ main {
       <div class="simrow">
         <button id="play">▶ Play</button>
         <button id="reset">Reset</button>
+        <button id="to-stop" title="Jump to just before the pit stop and play it at 5×">⏭ Stop</button>
+        <button id="to-flag" title="Jump to the finish: the timer then equals T(p)">⏭ Finish</button>
         <span class="speeds" role="group" aria-label="Race speed">
           <button data-speed="5" aria-pressed="false">5×</button>
           <button data-speed="20" aria-pressed="true" class="on">20×</button>
@@ -1004,6 +1011,7 @@ main {
         <div id="verdict" class="verdict"></div>
           <div id="fit-readout" class="fitread"></div>
           <div class="fitrow">
+            <label class="fitsrc">Real laps from <select id="fit-src" aria-label="Whose real lap times the fit uses"></select></label>
             <button id="fit-use">Use the fitted numbers</button>
             <span class="note" id="fit-note">—</span>
           </div>
@@ -1033,6 +1041,7 @@ window.STINT_INFO = {
   "k_raw": -0.0083,
   "source": "F1 timing via the Jolpica-F1 API (api.jolpi.ca)"
 };
+window.STINTS = [{"id":"leclerc-2024","driver":"Charles Leclerc","race":"Monza 2024","race_laps":53,"tyre":"hard","first_lap":16,"last_lap":53,"note":"race winner, one stop on lap 15","first_lap_kind":"out-lap","fuel_s_per_lap":0.06,"k_raw":-0.0083,"laps":[104.888,84.33,83.995,84.383,84.066,84.18,84.128,84.284,84.12,84.13,83.921,84.194,84.004,84.009,84.199,84.872,84.234,84.246,84.51,84.821,84.914,84.81,84.944,85.098,85.13,85.111,85.23,85.487,85.11,85.471,85.397,85.536,85.438,85.447,85.501,85.655,85.91,85.488],"laps_raw":[104.888,84.27,83.875,84.203,83.826,83.88,83.768,83.864,83.64,83.59,83.321,83.534,83.284,83.229,83.359,83.972,83.274,83.226,83.43,83.681,83.714,83.55,83.624,83.718,83.69,83.611,83.67,83.867,83.43,83.731,83.597,83.676,83.518,83.467,83.461,83.555,83.75,83.268],"source":"F1 timing via the Jolpica-F1 API (api.jolpi.ca)"},{"id":"verstappen-2023","driver":"Max Verstappen","race":"Monza 2023","race_laps":51,"tyre":"hard","first_lap":21,"last_lap":51,"note":"race winner, one stop on lap 20","first_lap_kind":"out-lap","fuel_s_per_lap":0.06,"k_raw":0.051,"laps":[105.66,85.945,86.279,86.507,86.154,86.086,85.861,85.854,85.951,85.938,86.102,86.07,85.96,86.463,86.655,86.498,86.643,86.605,86.566,87.041,86.979,87.172,87.314,87.131,87.356,87.685,87.697,88.855,89.587,90.133,89.325],"laps_raw":[105.66,85.885,86.159,86.327,85.914,85.786,85.501,85.434,85.471,85.398,85.502,85.41,85.24,85.683,85.815,85.598,85.683,85.585,85.486,85.901,85.779,85.912,85.994,85.751,85.916,86.185,86.137,87.235,87.907,88.393,87.525],"source":"F1 timing via the Jolpica-F1 API (api.jolpi.ca)"},{"id":"verstappen-2024","driver":"Max Verstappen","race":"Monza 2024","race_laps":53,"tyre":"hard","first_lap":2,"last_lap":21,"note":"finished 6th; started on hards, the first of three stints (lap 22 was his in-lap)","first_lap_kind":"first lap after the start","fuel_s_per_lap":0.06,"k_raw":0.009,"laps":[86.17,85.915,85.753,85.398,85.336,85.342,85.278,85.47,85.444,85.518,85.568,85.617,86.007,86.526,86.084,86.24,86.429,86.557,86.639,86.521],"laps_raw":[86.17,85.855,85.633,85.218,85.096,85.042,84.918,85.05,84.964,84.978,84.968,84.957,85.287,85.746,85.244,85.34,85.469,85.537,85.559,85.381],"source":"F1 timing via the Jolpica-F1 API (api.jolpi.ca)"}];
 </script>
 <script>
 /* Monza centreline. Geometry: bacinger/f1-circuits (MIT License),
@@ -2588,6 +2597,21 @@ window.TrackMap = (function () {
 
   var SPEEDS = [5, 1, 20];
 
+  /* for a presenter: jump to four race seconds before the car turns into the
+   * pit lane, switch to 5x and play, so the class sees the stop without waiting */
+  function jumpToStop() {
+    var s = S.sched;
+    if (!s) return;
+    resetSim(true);
+    var pitAt = s.cum[s.pitAfterLap];
+    var lapT = s.lapTimes[s.pitAfterLap - 1];
+    var pitGo = pitAt - (1 - CIRC.pitEntry.u) * lapT;
+    S.raceTime = Math.max(0, pitGo - 4);
+    setSpeed(5);
+    paint();
+    runOrPause();
+  }
+
   function finishNow() {
     if (S.finished) return;
     if (S.raf) { window.cancelAnimationFrame(S.raf); S.raf = 0; }
@@ -2757,12 +2781,25 @@ window.TrackMap = (function () {
     return sst > 0 ? 1 - ssr / sst : 1;
   }
 
+  /* the real stint the fit regresses on: chosen in the selector, Leclerc 2024
+   * by default (window.STINTS, built by data/make_real_stints.py) */
+  function currentStint() {
+    var list = window.STINTS || [], sel = $("fit-src"), id = sel ? sel.value : null, i;
+    for (i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    if (list.length) return list[0];
+    var info = window.STINT_INFO || {};
+    return { laps: (window.STINT || []).slice(), first_lap: info.first_lap || 1, driver: info.driver,
+             race: info.race, tyre: info.tyre, fuel_s_per_lap: info.fuel_s_per_lap || 0, k_raw: info.k_raw || 0,
+             last_lap: info.last_lap, note: "" };
+  }
+
   function drawFit() {
     /* the chart is gone from the page (Venice, 23:31: the fitted line only
      verified the maths). Draw into a detached svg so the readout still fills. */
     var svg = $("fitchart") || document.createElementNS("http://www.w3.org/2000/svg", "svg");
     while (svg.firstChild) svg.removeChild(svg.firstChild);
-    var laps = (window.STINT || []).slice();
+    var src = currentStint();
+    var laps = (src.laps || []).slice();
     var out = $("fit-readout");
     if (!out) return;   /* the fit block is gone (Venice, 11-19) */
     if (laps.length < 3) { if (out) out.textContent = "No stint data in the page."; return; }
@@ -2809,7 +2846,7 @@ window.TrackMap = (function () {
       svg.appendChild(ns("circle", { cx: X(q[0]), cy: cy, r: 3.4, "class": "pt" + (isKept ? "" : " out") }));
     });
 
-    var info = window.STINT_INFO || null;
+    var info = src;
     var firstLap = info ? info.first_lap : 1;
     var rejected = pairs.filter(function (q) { return kept.indexOf(q[0]) < 0; })
       .map(function (q) { return q[0] + firstLap; });
@@ -2819,15 +2856,17 @@ window.TrackMap = (function () {
       out.innerHTML = "<b>t₀ = " + fmt(fit.t0) + "</b> · <b>k = " + fit.k.toFixed(4) +
         " s/lap</b> · R² = " + rsq(used, fit.t0, fit.k).toFixed(3) +
         " · " + used.length + " of " + pairs.length + " laps" +
-        (rejected.length ? ", lap " + rejected.join(", ") + (rejected.length === 1 && rejected[0] === firstLap ? " (out-lap)" : "") + " dropped" : ", none dropped");
+        (rejected.length ? ", lap " + rejected.join(", ") + (rejected.length === 1 && rejected[0] === firstLap ? " (" + (info.first_lap_kind || "out-lap") + ")" : "") + " dropped" : ", none dropped");
     }
     var note = $("fit-note");
     if (note && info) {
       note.textContent = "Real laps: " + info.driver + ", " + info.race + ", laps " + info.first_lap + "–" +
-        info.last_lap + " on " + info.tyre + "s. Each lap gets +" + info.fuel_s_per_lap.toFixed(2) +
-        " s per lap since the stop for fuel burned (an estimate); without it k = " + info.k_raw.toFixed(3) + ".";
+        info.last_lap + " on " + info.tyre + "s" + (info.note ? " (" + info.note + ")" : "") + ". Each lap gets +" +
+        info.fuel_s_per_lap.toFixed(2) + " s for every lap of fuel burned since the stint began (an estimate); " +
+        "without it k = " + info.k_raw.toFixed(3) + ".";
     }
     S.fit = fit;
+    S.fitSrc = src;
   }
 
   var PRESETS = {
@@ -2861,6 +2900,10 @@ window.TrackMap = (function () {
     readParams();
     build();
     S.pit = S.win.best;
+    /* rebuild with the lap the page names: the first build ran with the state's
+     * starting pit lap (27), so the first replay stopped after lap 27 while every
+     * label said 26. The totals tie, which hid it; the stop stamp did not. */
+    build();
     $("pitlap").value = S.pit;
     $("pitlap").max = S.N - 1;
     $("pitrange").textContent = "1–" + (S.N - 1);
@@ -2897,12 +2940,25 @@ window.TrackMap = (function () {
     Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"), function (b) {
       b.addEventListener("click", function () { applyPreset(b.getAttribute("data-preset")); });
     });
+    var srcSel = $("fit-src");
+    if (srcSel && window.STINTS) {
+      window.STINTS.forEach(function (st) {
+        var o = document.createElement("option");
+        o.value = st.id;
+        o.textContent = st.driver.split(" ").slice(-1)[0] + " · " + st.race + " · laps " + st.first_lap + "–" + st.last_lap;
+        srcSel.appendChild(o);
+      });
+      srcSel.addEventListener("change", function () { drawFit(); });
+    }
+    $("to-stop").onclick = jumpToStop;
+    $("to-flag").onclick = function () { finishNow(); paint(); };
     var use = $("fit-use");
     if (!use) return;
     if (use) use.onclick = function () {
       if (!S.fit) return;
       $("s-t0").value = Math.max(60, Math.min(120, Math.round(S.fit.t0 * 2) / 2));
       $("s-k").value = Math.max(0, Math.min(0.3, Math.round(S.fit.k * 1000) / 1000));
+      if (S.fitSrc && S.fitSrc.race_laps) $("s-n").value = S.fitSrc.race_laps;   /* that race's length */
       onParam();
     };
 
